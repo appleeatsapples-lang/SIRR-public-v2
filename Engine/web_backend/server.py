@@ -1116,6 +1116,54 @@ async def trigger_purge(request: Request):
     return summary
 
 
+# ── §16.3 — Zero-knowledge operator metrics ───────────────────────────────
+
+def _require_internal_secret(request: Request) -> None:
+    """Shared auth helper for /api/internal/* endpoints. Raises 503 if the
+    secret is unset, 401 if the provided header doesn't match."""
+    configured = os.environ.get("SIRR_INTERNAL_SECRET", "").strip()
+    if not configured:
+        raise HTTPException(503, "endpoint disabled (no SIRR_INTERNAL_SECRET)")
+    provided = request.headers.get("x-internal-secret", "")
+    import hmac as _hmac
+    if not _hmac.compare_digest(provided, configured):
+        raise HTTPException(401, "invalid or missing internal secret")
+
+
+@app.get("/api/internal/metrics")
+async def operator_metrics(request: Request):
+    """Zero-knowledge operator dashboard JSON.
+
+    Returns aggregate counts / distributions / health indicators. Never
+    returns order_ids, names, emails, DOBs, or anything that could point
+    at a specific customer. Rare buckets (<5 members) collapsed.
+
+    Auth: same `X-Internal-Secret` header as `/api/internal/purge`.
+    """
+    _require_internal_secret(request)
+    try:
+        from metrics import compute_snapshot
+        return compute_snapshot()
+    except Exception as metrics_err:
+        print(f"[metrics-endpoint] failed: {sanitize_exception(metrics_err)}", file=sys.stderr)
+        raise HTTPException(500, "metrics computation failed")
+
+
+@app.get("/admin")
+async def admin_dashboard():
+    """Renders the operator dashboard HTML. The page itself is static; on
+    load it prompts for the internal secret and fetches /api/internal/metrics.
+
+    The secret lives in the browser's memory for the session only. The
+    server never stores it, never logs it, and never returns it. This
+    keeps the admin surface stateless and leak-resistant.
+    """
+    admin_html = WEB_DIR / "admin.html"
+    if not admin_html.exists():
+        raise HTTPException(404, "admin dashboard not bundled")
+    return FileResponse(str(admin_html), media_type="text/html")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)

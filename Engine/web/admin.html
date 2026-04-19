@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SIRR — Operator Dashboard</title>
+<meta name="robots" content="noindex,nofollow" />
+<style>
+  :root {
+    --bg:       #f5f1ea;
+    --bg2:      #ebe4d5;
+    --text:     #1a1814;
+    --text-d:   #8a8178;
+    --text-f:   #b5ac9f;
+    --amber:    #8a6f3d;
+    --red:      #9a3b2f;
+    --green:    #3f6b4b;
+    --serif:    'Newsreader', 'Instrument Serif', Georgia, serif;
+    --sans:     -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    --mono:     ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 48px 80px;
+    background: var(--bg); color: var(--text);
+    font-family: var(--serif); font-weight: 300;
+    max-width: 1100px; margin: 0 auto;
+  }
+  header { border-bottom: 1px solid var(--text-f); padding-bottom: 16px; margin-bottom: 32px; }
+  .eyebrow {
+    font-family: var(--sans); font-size: 10px; letter-spacing: 0.12em;
+    color: var(--text-d); text-transform: uppercase;
+  }
+  h1 { font-size: 36px; font-weight: 300; margin: 4px 0 2px; }
+  .subtitle { font-family: var(--sans); font-size: 13px; color: var(--text-d); margin: 0; }
+
+  /* Auth prompt */
+  #auth { padding: 24px; background: var(--bg2); border-radius: 4px; margin-bottom: 24px; }
+  #auth label { display: block; font-family: var(--sans); font-size: 12px; color: var(--text-d);
+    letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+  #auth input {
+    width: 100%; padding: 10px 12px; font-family: var(--mono); font-size: 14px;
+    background: var(--bg); color: var(--text); border: 1px solid var(--text-f);
+    border-radius: 3px;
+  }
+  #auth input:focus { outline: none; border-color: var(--amber); }
+  #auth button {
+    margin-top: 12px; padding: 10px 20px; font-family: var(--sans); font-size: 13px;
+    background: var(--amber); color: var(--bg); border: 0; border-radius: 3px; cursor: pointer;
+    letter-spacing: 0.04em;
+  }
+  #auth button:hover { background: var(--text); }
+  #auth-error {
+    margin-top: 10px; font-family: var(--sans); font-size: 12px; color: var(--red);
+    min-height: 16px;
+  }
+
+  /* Dashboard grid */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+  .card {
+    background: var(--bg2); padding: 20px 24px; border-radius: 4px;
+  }
+  .card h2 {
+    font-family: var(--sans); font-size: 11px; letter-spacing: 0.1em;
+    color: var(--text-d); text-transform: uppercase; margin: 0 0 12px;
+    font-weight: 500;
+  }
+  .metric {
+    font-family: var(--serif); font-size: 42px; font-weight: 300;
+    line-height: 1; margin: 0;
+  }
+  .metric-small { font-size: 24px; }
+  .metric-label {
+    font-family: var(--sans); font-size: 11px; color: var(--text-d);
+    letter-spacing: 0.04em; margin-top: 4px;
+  }
+  .row { display: flex; justify-content: space-between; align-items: baseline;
+    padding: 6px 0; border-bottom: 1px dotted var(--text-f); font-family: var(--mono); font-size: 13px; }
+  .row:last-child { border-bottom: 0; }
+  .row-key { color: var(--text-d); }
+  .row-val { color: var(--text); font-weight: 500; }
+  .pill {
+    display: inline-block; padding: 2px 8px; border-radius: 999px;
+    font-family: var(--sans); font-size: 10px; letter-spacing: 0.06em;
+    text-transform: uppercase; background: var(--bg); color: var(--text-d);
+  }
+  .pill-ok { background: var(--green); color: var(--bg); }
+  .pill-warn { background: var(--amber); color: var(--bg); }
+  .pill-bad { background: var(--red); color: var(--bg); }
+
+  .actions { margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--text-f); }
+  .actions h2 { font-family: var(--sans); font-size: 11px; letter-spacing: 0.1em;
+    color: var(--text-d); text-transform: uppercase; margin: 0 0 12px; font-weight: 500; }
+  .actions button {
+    padding: 8px 16px; font-family: var(--sans); font-size: 12px;
+    background: transparent; color: var(--text); border: 1px solid var(--text-f);
+    border-radius: 3px; cursor: pointer; margin-right: 8px;
+  }
+  .actions button:hover { border-color: var(--text); }
+
+  .footer-note {
+    margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--text-f);
+    font-family: var(--sans); font-size: 11px; color: var(--text-d); line-height: 1.6;
+  }
+  .footer-note code { font-family: var(--mono); background: var(--bg2); padding: 1px 5px; border-radius: 2px; }
+
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow">سِرّ · operator dashboard</div>
+  <h1>Zero-knowledge overview</h1>
+  <p class="subtitle">Aggregate-only. No individual orders, no names, no content — by design.</p>
+</header>
+
+<div id="auth">
+  <label for="secret">Internal secret</label>
+  <input id="secret" type="password" autocomplete="off" placeholder="Paste SIRR_INTERNAL_SECRET" />
+  <button id="auth-btn">Load dashboard</button>
+  <div id="auth-error"></div>
+</div>
+
+<div id="dashboard" class="hidden">
+
+  <div class="grid">
+
+    <div class="card">
+      <h2>Orders — total</h2>
+      <p class="metric" id="m-total">—</p>
+      <div class="metric-label">All time, pre-retention-purge</div>
+    </div>
+
+    <div class="card">
+      <h2>Ready rate</h2>
+      <p class="metric" id="m-rate">—</p>
+      <div class="metric-label" id="m-rate-label">Hidden until ≥ 5 orders</div>
+    </div>
+
+    <div class="card">
+      <h2>Tier 3 deletion queue</h2>
+      <p class="metric metric-small" id="m-queue">—</p>
+      <div class="metric-label">Right-to-delete requests pending</div>
+    </div>
+
+    <div class="card">
+      <h2>Oldest order</h2>
+      <p class="metric metric-small" id="m-oldest">—</p>
+      <div class="metric-label">Retention purges at 30 days</div>
+    </div>
+
+    <div class="card">
+      <h2>By status</h2>
+      <div id="m-status">—</div>
+    </div>
+
+    <div class="card">
+      <h2>By age</h2>
+      <div id="m-age">—</div>
+    </div>
+
+    <div class="card">
+      <h2>By language</h2>
+      <div id="m-lang">—</div>
+    </div>
+
+    <div class="card">
+      <h2>Error categories</h2>
+      <div id="m-errors">—</div>
+    </div>
+
+    <div class="card">
+      <h2>Tier 2 files on disk</h2>
+      <div id="m-files">—</div>
+    </div>
+
+  </div>
+
+  <div class="actions">
+    <h2>Operator actions</h2>
+    <button id="btn-refresh">Refresh</button>
+    <button id="btn-purge">Run retention purge</button>
+    <div id="action-result" style="margin-top: 12px; font-family: var(--mono); font-size: 12px; color: var(--text-d); white-space: pre-wrap;"></div>
+  </div>
+
+  <div class="footer-note">
+    <strong>Privacy contract:</strong> this page fetches <code>/api/internal/metrics</code> which
+    returns only aggregated counts. The secret you pasted lives in this browser's memory for the
+    current session only — never stored, never logged server-side. Reload to clear it.
+    Rare buckets (fewer than 5 members) collapse into <code>&lt;5</code> to preserve k-anonymity.
+    Generated at <span id="m-generated">—</span>.
+  </div>
+
+</div>
+
+<script>
+  // In-memory only — never persisted. Reload clears.
+  let SECRET = "";
+
+  const $ = id => document.getElementById(id);
+
+  function renderKV(containerId, obj) {
+    const el = $(containerId);
+    if (!obj || Object.keys(obj).length === 0) {
+      el.innerHTML = '<div class="row"><span class="row-key">empty</span><span class="row-val">—</span></div>';
+      return;
+    }
+    el.innerHTML = Object.entries(obj).map(([k, v]) =>
+      `<div class="row"><span class="row-key">${escapeHtml(k)}</span><span class="row-val">${escapeHtml(String(v))}</span></div>`
+    ).join("");
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  }
+
+  function healthPill(rate) {
+    if (rate === null) return '<span class="pill">insufficient data</span>';
+    if (rate >= 95) return '<span class="pill pill-ok">healthy</span>';
+    if (rate >= 75) return '<span class="pill pill-warn">watch</span>';
+    return '<span class="pill pill-bad">degraded</span>';
+  }
+
+  async function loadMetrics() {
+    $("auth-error").textContent = "";
+    let resp;
+    try {
+      resp = await fetch("/api/internal/metrics", {
+        headers: { "X-Internal-Secret": SECRET },
+      });
+    } catch (e) {
+      $("auth-error").textContent = "Network error: " + e.message;
+      return false;
+    }
+    if (resp.status === 401) {
+      $("auth-error").textContent = "Invalid secret.";
+      return false;
+    }
+    if (resp.status === 503) {
+      $("auth-error").textContent = "Server endpoint disabled — SIRR_INTERNAL_SECRET is not set on the web service.";
+      return false;
+    }
+    if (!resp.ok) {
+      $("auth-error").textContent = "Server error: HTTP " + resp.status;
+      return false;
+    }
+    const data = await resp.json();
+    render(data);
+    return true;
+  }
+
+  function render(data) {
+    $("auth").classList.add("hidden");
+    $("dashboard").classList.remove("hidden");
+
+    $("m-total").textContent = data.orders.total;
+    const rate = data.orders.total > 0 && data.health.ready_rate_pct !== null
+      ? data.health.ready_rate_pct + "% " + healthPill(data.health.ready_rate_pct)
+      : "—";
+    $("m-rate").innerHTML = rate;
+    $("m-rate-label").textContent = data.health.ready_rate_pct === null
+      ? "Hidden — fewer than 5 orders"
+      : "Share of orders reaching 'ready' status";
+
+    $("m-queue").textContent = data.deletion_queue.pending;
+    $("m-oldest").textContent = data.health.oldest_order_age_bucket;
+
+    renderKV("m-status", data.orders.by_status);
+    renderKV("m-age", data.orders.by_age);
+    renderKV("m-lang", data.orders.by_lang);
+    renderKV("m-errors", data.orders.error_categories);
+    renderKV("m-files", data.tier2_files);
+
+    $("m-generated").textContent = data.generated_at;
+  }
+
+  $("auth-btn").addEventListener("click", async () => {
+    SECRET = $("secret").value.trim();
+    if (!SECRET) {
+      $("auth-error").textContent = "Secret required.";
+      return;
+    }
+    await loadMetrics();
+  });
+
+  $("secret").addEventListener("keydown", e => {
+    if (e.key === "Enter") $("auth-btn").click();
+  });
+
+  $("btn-refresh").addEventListener("click", () => {
+    $("action-result").textContent = "refreshing…";
+    loadMetrics().then(ok => {
+      $("action-result").textContent = ok ? "refreshed " + new Date().toISOString() : "";
+    });
+  });
+
+  $("btn-purge").addEventListener("click", async () => {
+    $("action-result").textContent = "running retention purge…";
+    try {
+      const resp = await fetch("/api/internal/purge", {
+        method: "POST",
+        headers: { "X-Internal-Secret": SECRET, "Content-Type": "application/json" },
+      });
+      const body = await resp.json();
+      $("action-result").textContent = "HTTP " + resp.status + " " + JSON.stringify(body, null, 2);
+      // Reload metrics to show new state
+      setTimeout(loadMetrics, 500);
+    } catch (e) {
+      $("action-result").textContent = "error: " + e.message;
+    }
+  });
+</script>
+</body>
+</html>
