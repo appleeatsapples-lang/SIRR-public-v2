@@ -10,3 +10,4 @@ uvicorn
 anthropic
 httpx
 hdate
+cryptography
