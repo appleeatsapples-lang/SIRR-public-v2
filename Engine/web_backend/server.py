@@ -33,6 +33,11 @@ from tokens import mint_token, try_verify_token, TokenError
 from crypto import read_maybe_encrypted, write_encrypted, is_encrypted, DecryptionError
 # §16.5 — traceback sanitization
 from sanitize import sanitize_exception
+# Styled error + status page rendering
+from errors import (
+    render_page, render_404, render_401, render_400, render_500,
+    render_reading_processing, render_reading_pending,
+)
 
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
@@ -59,6 +64,51 @@ from html_reading import generate_html as generate_html_reading
 from unified_synthesis import compute_unified_synthesis
 
 app = FastAPI(title="SIRR Engine", version="2.0")
+
+
+# ── Styled error pages for browser requests, JSON for API ────────────────
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+
+def _wants_html(request: Request) -> bool:
+    """Render HTML only if (a) the path is NOT under /api/ AND
+    (b) Accept header includes text/html. API paths always get JSON."""
+    path = request.url.path or ""
+    if path.startswith("/api/"):
+        return False
+    accept = request.headers.get("accept", "")
+    return "text/html" in accept or "*/*" in accept or not accept
+
+
+@app.exception_handler(StarletteHTTPException)
+async def styled_http_exception_handler(request: Request, exc: StarletteHTTPException):
+    if not _wants_html(request):
+        # Preserve FastAPI's default JSON response for API callers
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+        )
+    # Browser request — render the styled page
+    status = exc.status_code
+    if status == 404:
+        body = render_404()
+    elif status == 401:
+        body = render_401()
+    elif status == 400:
+        body = render_400(str(exc.detail) if exc.detail else None)
+    elif status >= 500:
+        body = render_500()
+    else:
+        body = render_page(
+            title=f"Error {status}",
+            code=str(status),
+            headline="Something went sideways.",
+            detail=str(exc.detail) if exc.detail else "Unexpected response.",
+            actions=[("Return home", "/", True)],
+        )
+    return HTMLResponse(content=body, status_code=status)
+
 
 # Sequential engine execution (runner is not thread-safe)
 _engine_lock = threading.Lock()
@@ -728,9 +778,9 @@ async def reading_page(order_id: str):
         if not order:
             raise HTTPException(404, "Reading not found")
         if order["status"] == "processing":
-            return HTMLResponse("<html><body style='font-family:ui-monospace,monospace;background:#f5f1ea;color:#1a1814;padding:40px'>Your reading is being prepared. Refresh shortly.</body></html>")
+            return HTMLResponse(render_reading_processing())
         if order["status"] in ("pending", "paid"):
-            return HTMLResponse("<html><body style='font-family:ui-monospace,monospace;background:#f5f1ea;color:#1a1814;padding:40px'>Payment confirmed. Your reading is being generated.</body></html>")
+            return HTMLResponse(render_reading_pending())
         raise HTTPException(404, "Reading not found")
     return _serve_tier2_html(reading_path, order_id)
 
@@ -759,10 +809,7 @@ async def reading_unified_page(order_id: str):
         if not order:
             raise HTTPException(404, "Unified view not found")
         if order["status"] in ("processing", "paid", "pending"):
-            return HTMLResponse(
-                "<html><body style='font-family:monospace;background:#f5f1ea;color:#1a1814;padding:40px'>"
-                "Your unified view is being prepared. Refresh shortly.</body></html>"
-            )
+            return HTMLResponse(render_reading_processing())
         raise HTTPException(404, "Unified view not found")
 
     return _serve_tier2_html(unified_path, order_id)
