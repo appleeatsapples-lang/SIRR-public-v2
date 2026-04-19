@@ -2943,13 +2943,13 @@
         "scholarship_fidelity": "CLASSICAL",
         "scholarship_note": "Classified CLASSICAL via §4.6 crosswalk classifier (module source did not declare explicitly)."
       },
-      "interpretation": "Independent script confirming Root 3. This strengthens the creative-expression axis beyond Arabic and Western numerology — genuine cross-family convergence.",
+      "interpretation": "Independent script producing a converging value. This strengthens the creative-expression axis beyond Arabic and Western numerology — genuine cross-family convergence.",
       "constants_version": "sirr-new-systems-v1.2",
       "references": [
         "Armenian numeral system via Latin phonetic transliteration"
       ],
       "question": "Q1_IDENTITY",
-      "ar_interpretation": "خط مستقل يؤكد الجذر 3. يعزز محور الإبداع والتعبير عبر عائلة مختلفة حقًا، تقاطع ثقافي أصيل.",
+      "ar_interpretation": "خط مستقل ينتج قيمة متقاطعة. يعزز محور الإبداع والتعبير عبر عائلة مختلفة حقًا، تقاطع ثقافي أصيل.",
       "domain": "name_intelligence",
       "tier": "STANDARD"
     },
@@ -2965,13 +2965,13 @@
         "scholarship_fidelity": "CLASSICAL",
         "scholarship_note": "Classified CLASSICAL via §4.6 crosswalk classifier (module source did not declare explicitly)."
       },
-      "interpretation": "Again 3 from independent Caucasian script. This saturation suggests Root 3 is structural identity, not coincidence.",
+      "interpretation": "Again the same value from an independent Caucasian script. This saturation suggests the pattern is structural identity, not coincidence.",
       "constants_version": "sirr-new-systems-v1.2",
       "references": [
         "Georgian Asomtavruli numeral values via Latin phonetic transliteration"
       ],
       "question": "Q1_IDENTITY",
-      "ar_interpretation": "الجذر 3 مجددًا من خط قوقازي مستقل. هذا التشبع يدل أن الجذر 3 بنيوي في هويتك لا مصادفة.",
+      "ar_interpretation": "القيمة ذاتها مجددًا من خط قوقازي مستقل. هذا التشبع يدل أن النمط بنيوي في هويتك لا مصادفة.",
       "domain": "name_intelligence",
       "tier": "STANDARD"
     },
@@ -20830,7 +20830,7 @@
         "scholarship_fidelity": "CLASSICAL",
         "scholarship_note": "Classified CLASSICAL via §4.6 crosswalk classifier (module source did not declare explicitly)."
       },
-      "interpretation": "Your Abjad total is 637, reducing to root 8, and the 4x4 magic constant matches exactly, giving the pattern a stable architectural center. The exact match matters because it makes the structure feel held rather than approximate. Root 8 adds themes of pressure-bearing, management, and material seriousness to that central stability. Lived from within, this can feel like needing systems, frameworks, and arrangements that truly support weight rather than merely looking elegant.",
+      "interpretation": "Your Abjad total is 637, and the 4x4 magic constant matches it exactly, giving the pattern a stable architectural center. The exact match matters because it makes the structure feel held rather than approximate. Lived from within, this can feel like needing systems, frameworks, and arrangements that truly support weight rather than merely looking elegant.",
       "constants_version": "sirr-new-systems-v1.2",
       "references": [
         "Al-Buni — Shams al-Ma'arif (wafq construction)",
@@ -20838,7 +20838,7 @@
         "Siamese method for 5×5 (de la Loubère)"
       ],
       "question": "Q1_IDENTITY",
-      "ar_interpretation": "مجموع الأبجد لديك 637 ويؤول إلى الجذر 8، كما أن الثابت الوفقي الرباعي 4×4 متطابق تمامًا، وهذا يمنح البنية مركزًا معماريًا ثابتًا. وتكمن أهمية هذا التطابق في أنه يجعل الهيئة ممسوكة لا تقريبية. ويضيف الجذر 8 إلى هذا المركز معاني حمل الضغط والإدارة والجدية المادية. ومن الداخل قد يُعاش ذلك كحاجةٍ إلى أن تكون الأنظمة والترتيبات قادرة على التحمل فعلًا، لا أن تبدو جميلة فقط.",
+      "ar_interpretation": "مجموع الأبجد لديك 637، والثابت الوفقي الرباعي 4×4 متطابق معه تمامًا، وهذا يمنح البنية مركزًا معماريًا ثابتًا. وتكمن أهمية هذا التطابق في أنه يجعل الهيئة ممسوكة لا تقريبية. ومن الداخل قد يُعاش ذلك كحاجةٍ إلى أن تكون الأنظمة والترتيبات قادرة على التحمل فعلًا، لا أن تبدو جميلة فقط.",
       "domain": "name_intelligence",
       "tier": "STANDARD"
     },
@@ -21785,7 +21785,7 @@
         "scholarship_fidelity": "CLASSICAL",
         "scholarship_note": "Classified CLASSICAL via §4.6 crosswalk classifier (module source did not declare explicitly)."
       },
-      "interpretation": "Your full name totals {abjad_total}, reduces to root 8, and spans 15 letters, creating a strong bridge-point for cross-tradition numerical matching. What matters experientially is that the same weighted center keeps reappearing under different counting languages. That tends to make the identity feel less accidental and more pattern-bearing. Lived inwardly, it can feel like different symbolic systems keep touching the same structural nerve.",
+      "interpretation": "Your full name totals {abjad_total} and spans 15 letters, creating a bridge-point for cross-tradition numerical matching. What matters experientially is that the same weighted center keeps reappearing under different counting languages. That tends to make the identity feel less accidental and more pattern-bearing. Lived inwardly, it can feel like different symbolic systems keep touching the same structural nerve.",
       "constants_version": "sirr-new-systems-v1.2",
       "references": [
         "Sefer ha-Bahir",
@@ -21793,7 +21793,7 @@
         "kabbalah_solomonic_lookups.json"
       ],
       "question": "Q2_MEANING",
-      "ar_interpretation": "جُمّل الاسم الكامل {abjad_total} ويؤول إلى الجذر 8، ويمتد على 15 حرفًا، مما يصنع نقطةَ عبورٍ قوية للمطابقة العددية عبر التقاليد المختلفة. وما يهم في الخبرة هو أن المركز الموزون نفسه يعود للظهور تحت لغات حسابٍ متعددة. وهذا كثيرًا ما يجعل الهوية أقل عرضيةً وأكثر حملًا للنمط. ومن الداخل قد يُعاش ذلك كأن أنظمة رمزية مختلفة تلمس العصب البنيوي نفسه.",
+      "ar_interpretation": "جُمّل الاسم الكامل {abjad_total} ويمتد على 15 حرفًا، مما يصنع نقطةَ عبورٍ للمطابقة العددية عبر التقاليد المختلفة. وما يهم في الخبرة هو أن المركز الموزون نفسه يعود للظهور تحت لغات حسابٍ متعددة. وهذا كثيرًا ما يجعل الهوية أقل عرضيةً وأكثر حملًا للنمط. ومن الداخل قد يُعاش ذلك كأن أنظمة رمزية مختلفة تلمس العصب البنيوي نفسه.",
       "domain": "name_intelligence",
       "tier": "HERO"
     },
@@ -21855,10 +21855,10 @@
         "pillar_balanced": false,
         "daat_active": true,
         "active_sephirot": [
-          "Keter",
-          "Netzach",
+          "Da'at",
           "Tiferet",
-          "Da'at"
+          "Keter",
+          "Netzach"
         ],
         "sephirot_count": 4,
         "module_class": "meta",
@@ -21897,6 +21897,16 @@
         "dominant_angel": "Michael",
         "dominant_kamea_constant": 111,
         "active_correspondences": {
+          "Jupiter": {
+            "angel": "Sachiel",
+            "intelligence": "Iophiel",
+            "spirit": "Hismael",
+            "metal": "Tin",
+            "day": "Thursday",
+            "color": "Blue",
+            "kamea_order": 4,
+            "magic_square_constant": 34
+          },
           "Mars": {
             "angel": "Samael",
             "intelligence": "Graphiel",
@@ -21916,16 +21926,6 @@
             "color": "Yellow/Gold",
             "kamea_order": 6,
             "magic_square_constant": 111
-          },
-          "Jupiter": {
-            "angel": "Sachiel",
-            "intelligence": "Iophiel",
-            "spirit": "Hismael",
-            "metal": "Tin",
-            "day": "Thursday",
-            "color": "Blue",
-            "kamea_order": 4,
-            "magic_square_constant": 34
           }
         },
         "module_class": "meta",
@@ -23102,7 +23102,7 @@
         "scholarship_fidelity": "CLASSICAL_METHOD_MODERN_APPLICATION",
         "scholarship_note": "Classified CLASSICAL_METHOD_MODERN_APPLICATION via §4.6 crosswalk classifier (module source did not declare explicitly)."
       },
-      "interpretation": "Both Gadol and Siduri reduce to root 8, so recurrence across methods strengthens the signal beyond any one count alone. Root 8 keeps returning with its themes of management, endurance, pressure, and structural seriousness. The repetition matters because it makes the pattern feel confirmed rather than incidental. Lived inwardly, this often feels like encountering the same lesson of weight and control in more than one symbolic language.",
+      "interpretation": "Both Gadol and Siduri converge on the same root, so recurrence across methods strengthens the signal beyond any one count alone. The repetition matters because it makes the pattern feel confirmed rather than incidental. Lived inwardly, this often feels like encountering the same weighted theme in more than one symbolic language.",
       "constants_version": "sirr-new-systems-v1.2",
       "references": [
         "Scholem, 'Kabbalah': Hebrew gematria variant methods",
@@ -23110,7 +23110,7 @@
         "SOURCE_TIER:A — Primary Kabbalistic and Renaissance occult texts."
       ],
       "question": "Q1_IDENTITY",
-      "ar_interpretation": "يؤول كلٌّ من غادول وسيدوري إلى الجذر 8، ولذلك يقوّي التكرار عبر الطريقتين الإشارةَ أكثر من أي حساب منفرد. وتعود الثمانية هنا بموضوعاتها: الإدارة، والاحتمال، والضغط، والجدية البنيوية. وتكمن أهمية هذا التكرار في أنه يجعل النمط مؤكدًا لا عرضيًا. ومن الداخل قد يُعاش ذلك كأن درسَ الثقل والضبط يعود إليك في أكثر من لغة رمزية.",
+      "ar_interpretation": "يتقاطع كلٌّ من غادول وسيدوري على الجذر ذاته، ولذلك يقوّي التكرار عبر الطريقتين الإشارةَ أكثر من أي حساب منفرد. وتكمن أهمية هذا التكرار في أنه يجعل النمط مؤكدًا لا عرضيًا. ومن الداخل قد يُعاش ذلك كأن الموضوع الموزون نفسه يعود إليك في أكثر من لغة رمزية.",
       "domain": null,
       "tier": null
     },
@@ -23161,14 +23161,14 @@
         "system_count": 27,
         "group_count": 8,
         "groups": [
-          "birth_digits",
-          "hellenistic_day",
-          "chinese_calendar",
-          "arabic_name",
           "tibetan_calendar",
+          "chinese_calendar",
+          "birth_digits",
+          "arabic_name",
           "birth_time",
+          "astronomical",
           "latin_name",
-          "astronomical"
+          "hellenistic_day"
         ],
         "systems": [
           "compound",
@@ -23235,13 +23235,13 @@
         "system_count": 12,
         "group_count": 7,
         "groups": [
-          "african_binary",
-          "mayan_calendar",
           "birth_digits",
           "arabic_name",
+          "african_binary",
+          "mayan_calendar",
           "birth_time",
-          "latin_name",
-          "astronomical"
+          "astronomical",
+          "latin_name"
         ],
         "systems": [
           "mayan",
@@ -23278,14 +23278,14 @@
         "system_count": 14,
         "group_count": 8,
         "groups": [
-          "mayan_calendar",
-          "birth_digits",
-          "hellenistic_day",
-          "arabic_name",
           "chinese_calendar",
-          "latin_name",
+          "birth_digits",
+          "arabic_name",
+          "mayan_calendar",
           "mandaean_name",
-          "astronomical"
+          "astronomical",
+          "latin_name",
+          "hellenistic_day"
         ],
         "systems": [
           "challenges",
@@ -23326,9 +23326,9 @@
         "system_count": 8,
         "group_count": 4,
         "groups": [
-          "arabic_name",
           "chinese_calendar",
           "birth_digits",
+          "arabic_name",
           "astronomical"
         ],
         "systems": [
@@ -23358,12 +23358,12 @@
         "system_count": 12,
         "group_count": 6,
         "groups": [
-          "birth_digits",
-          "hellenistic_day",
-          "hijri_calendar",
           "derived",
+          "birth_digits",
+          "astronomical",
           "latin_name",
-          "astronomical"
+          "hijri_calendar",
+          "hellenistic_day"
         ],
         "systems": [
           "essence",
@@ -23400,13 +23400,13 @@
         "system_count": 11,
         "group_count": 7,
         "groups": [
-          "african_binary",
-          "birth_digits",
-          "hijri_calendar",
           "derived",
+          "birth_digits",
+          "african_binary",
           "birth_time",
+          "astronomical",
           "latin_name",
-          "astronomical"
+          "hijri_calendar"
         ],
         "systems": [
           "compound",
@@ -23441,13 +23441,13 @@
         "system_count": 25,
         "group_count": 7,
         "groups": [
-          "chaldean_name",
-          "mayan_calendar",
-          "latin_name",
+          "chinese_calendar",
           "birth_digits",
           "arabic_name",
-          "chinese_calendar",
-          "astronomical"
+          "mayan_calendar",
+          "astronomical",
+          "chaldean_name",
+          "latin_name"
         ],
         "systems": [
           "mayan",
@@ -23510,14 +23510,14 @@
         "system_count": 10,
         "group_count": 8,
         "groups": [
-          "birth_digits",
-          "hijri_calendar",
-          "arabic_name",
-          "chinese_calendar",
           "derived",
+          "chinese_calendar",
+          "birth_digits",
+          "arabic_name",
           "birth_time",
+          "astronomical",
           "latin_name",
-          "astronomical"
+          "hijri_calendar"
         ],
         "systems": [
           "notarikon",
@@ -23550,8 +23550,8 @@
         "system_count": 4,
         "group_count": 3,
         "groups": [
-          "latin_name",
           "birth_digits",
+          "latin_name",
           "derived"
         ],
         "systems": [
@@ -23573,12 +23573,12 @@
         "system_count": 8,
         "group_count": 6,
         "groups": [
-          "mayan_calendar",
-          "birth_digits",
-          "solar_cycle",
-          "arabic_name",
           "derived",
-          "astronomical"
+          "birth_digits",
+          "arabic_name",
+          "mayan_calendar",
+          "astronomical",
+          "solar_cycle"
         ],
         "systems": [
           "compound",
@@ -23609,9 +23609,9 @@
         "groups": [
           "birth_digits",
           "arabic_name",
+          "astronomical",
           "latin_name",
-          "indo_javanese_calendar",
-          "astronomical"
+          "indo_javanese_calendar"
         ],
         "systems": [
           "compound",
@@ -23640,10 +23640,10 @@
         "system_count": 6,
         "group_count": 4,
         "groups": [
-          "astronomical",
-          "derived",
           "birth_time",
-          "hellenistic_day"
+          "hellenistic_day",
+          "derived",
+          "astronomical"
         ],
         "systems": [
           "geomancy",
@@ -23688,8 +23688,8 @@
         "system_count": 3,
         "group_count": 2,
         "groups": [
-          "indo_javanese_calendar",
-          "approx"
+          "approx",
+          "indo_javanese_calendar"
         ],
         "systems": [
           "vedic_yoga",
@@ -23708,10 +23708,10 @@
         "system_count": 5,
         "group_count": 4,
         "groups": [
-          "hijri_calendar",
-          "oceanic_lunar_calendar",
           "astronomical",
-          "hebrew_calendar_family"
+          "oceanic_lunar_calendar",
+          "hebrew_calendar_family",
+          "hijri_calendar"
         ],
         "systems": [
           "hijri",
@@ -23734,10 +23734,10 @@
         "system_count": 6,
         "group_count": 4,
         "groups": [
-          "birth_time",
-          "birth_digits",
           "approx",
-          "astronomical"
+          "birth_digits",
+          "astronomical",
+          "birth_time"
         ],
         "systems": [
           "compound",
@@ -23764,12 +23764,12 @@
         "system_count": 10,
         "group_count": 6,
         "groups": [
-          "african_binary",
-          "african_calendar",
-          "arabic_name",
           "derived",
           "tibetan_calendar",
-          "chinese_calendar"
+          "chinese_calendar",
+          "arabic_name",
+          "african_binary",
+          "african_calendar"
         ],
         "systems": [
           "nayin",
@@ -23790,12 +23790,12 @@
         "system_count": 10,
         "group_count": 6,
         "groups": [
-          "hellenistic_day",
-          "arabic_name",
           "derived",
           "tibetan_calendar",
+          "arabic_name",
           "zoroastrian_calendar",
-          "astronomical"
+          "astronomical",
+          "hellenistic_day"
         ],
         "systems": [
           "elemental_letters",
@@ -23817,9 +23817,9 @@
         "group_count": 4,
         "groups": [
           "chinese_calendar",
+          "astronomical",
           "derived",
-          "birth_time",
-          "astronomical"
+          "birth_time"
         ],
         "systems": [
           "nine_star_ki",
@@ -24957,7 +24957,7 @@
   },
   "narrative": {
     "version": "narrative_v1.0",
-    "generated_at": "2026-04-19T08:33:26",
+    "generated_at": "2026-04-19T11:28:40",
     "profile_ref": {
       "subject": "FATIMA AHMED ALKATIB",
       "arabic": "فاطمة أحمد الكاتب",
@@ -24988,14 +24988,14 @@
       "dominant_tier": "TIER_1_RESONANCE",
       "dominant_percentile": 0.0,
       "dominant_group_ids": [
-        "birth_digits",
-        "hellenistic_day",
-        "chinese_calendar",
-        "arabic_name",
         "tibetan_calendar",
+        "chinese_calendar",
+        "birth_digits",
+        "arabic_name",
         "birth_time",
+        "astronomical",
         "latin_name",
-        "astronomical"
+        "hellenistic_day"
       ],
       "secondary": [
         {
@@ -25097,7 +25097,7 @@
         },
         {
           "id": "T002_containment_architecture",
-          "title": "Containment architecture (1 + 1)",
+          "title": "Architecture signature (1 + 1)",
           "capacity_statement": "Soul Urge 1 drives structural stability; Personality 1 filters through analytical reserve before public expression.",
           "tensions": [
             "Combined 1+1 can over-qualify work before release; release criteria must be explicit to prevent endless refinement."

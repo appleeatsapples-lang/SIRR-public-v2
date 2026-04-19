@@ -5,9 +5,9 @@ Executes ONLY the 25 high-signal modules selected via signal analysis
 (SIGNAL_SCORE = primary_hit - baseline_dominance_rate, positive only,
 capped at 2-3 per independence group).
 
-Two layers:
-  DOMINANT (Root 8)  — 14 modules — what actually drives the system
-  STRUCTURAL (Root 3) — 11 modules — what the life path recognizes
+Two clusters (calibration-panel):
+  CLUSTER PRIMARY   — 14 modules — dominant-signal panel (calibration-run)
+  CLUSTER SECONDARY — 11 modules — structural/life-path panel (calibration-run)
 
 Dependency order:
   1. natal_chart  — infrastructure, feeds 6 astronomical modules
@@ -28,7 +28,7 @@ from sirr_core.utils import date_to_iso
 # Infrastructure
 from modules import natal_chart
 
-# Dominant layer (Root 8) — 14 modules
+# Cluster primary — 14 modules
 from modules import (
     subconscious_self,
     solar_return,
@@ -46,7 +46,7 @@ from modules import (
     abjad_kabir,
 )
 
-# Structural layer (Root 3) — 11 modules
+# Cluster secondary — 11 modules
 from modules import (
     zairja,
     buduh,
@@ -63,7 +63,7 @@ from modules import (
 
 
 CORE_25_LAYERS = {
-    "dominant_root_8": [
+    "cluster_primary": [
         "subconscious_self",
         "solar_return",
         "solar_lunar",
@@ -79,7 +79,7 @@ CORE_25_LAYERS = {
         "ethiopian_asmat",
         "abjad_kabir",
     ],
-    "structural_root_3": [
+    "cluster_secondary": [
         "zairja",
         "buduh",
         "atbash",
@@ -137,7 +137,8 @@ INDEPENDENCE_GROUPS = {
 #   • Extra fields the engine already emits are preserved untouched
 #     (the frontend ignores unknowns)
 #
-# `MODULE_ROOT` is derived from CORE_25_LAYERS so root is not duplicated.
+# `MODULE_ROOT` is the calibration-run expected root per module. These
+# integers are fixed panel calibration values, not per-subject expectations.
 # `_normalize_data_for_scaffold` adds scaffold-named fields alongside
 # whatever the module already returned — it never deletes engine fields,
 # so other downstream consumers (synthesis.py, reading_composer, etc.)
@@ -145,8 +146,8 @@ INDEPENDENCE_GROUPS = {
 # ─────────────────────────────────────────────────────────────────────
 
 MODULE_ROOT: dict[str, int] = {
-    **{mid: 8 for mid in CORE_25_LAYERS["dominant_root_8"]},
-    **{mid: 3 for mid in CORE_25_LAYERS["structural_root_3"]},
+    **{mid: 8 for mid in CORE_25_LAYERS["cluster_primary"]},
+    **{mid: 3 for mid in CORE_25_LAYERS["cluster_secondary"]},
 }
 
 

@@ -11,7 +11,7 @@ numerology, and more.
 - `Engine/tests/` — test suite (pytest)
 - `Engine/web/` — landing page and demo views
 - `Engine/web_backend/` — FastAPI endpoints (`/api/demo`, `/api/transliterate`, `/api/checkout`)
-- `Docs/engine/` — architecture and module documentation
+- `Docs/experience/` — synthetic showcase reference
 
 ## Running locally
 

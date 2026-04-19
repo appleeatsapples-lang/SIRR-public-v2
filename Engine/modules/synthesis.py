@@ -22,9 +22,9 @@ LOCKABLE = {"COMPUTED_STRICT", "LOOKUP_FIXED"}
 # Slim high-signal panel used by sirr_core_25.py. Mirror of CORE_25_LAYERS
 # in sirr_core_25.py and the list in MASTER_CONTEXT.md. When synthesize()
 # is called with core25_mode=True, convergence detection is restricted to
-# exactly these 25 modules and Root 8 (dominant) + Root 3 (LP / structural)
-# are surfaced as explicit top-level keys in the output.
-CORE_25_DOMINANT_ROOT_8 = frozenset({
+# exactly these 25 modules and the cluster-primary + cluster-secondary
+# panels are surfaced as explicit top-level keys in the output.
+CORE_25_CLUSTER_PRIMARY = frozenset({
     "subconscious_self",
     "solar_return",
     "solar_lunar",
@@ -40,7 +40,7 @@ CORE_25_DOMINANT_ROOT_8 = frozenset({
     "ethiopian_asmat",
     "abjad_kabir",
 })
-CORE_25_STRUCTURAL_ROOT_3 = frozenset({
+CORE_25_CLUSTER_SECONDARY = frozenset({
     "zairja",
     "buduh",
     "atbash",
@@ -53,7 +53,7 @@ CORE_25_STRUCTURAL_ROOT_3 = frozenset({
     "sect",
     "essential_dignities",
 })
-CORE_25_MODULES = CORE_25_DOMINANT_ROOT_8 | CORE_25_STRUCTURAL_ROOT_3
+CORE_25_MODULES = CORE_25_CLUSTER_PRIMARY | CORE_25_CLUSTER_SECONDARY
 
 # ── Load Monte Carlo baselines (stratified by name length) ──
 # Multiple baselines are kept on disk. We load every one we can find and
@@ -938,9 +938,9 @@ def synthesize(
     core25_mode : bool, default False
         When True, restrict convergence detection to the 25 high-signal
         modules defined in CORE_25_MODULES (mirrors sirr_core_25.py).
-        The returned dict gains explicit `root_8_convergence` and
-        `root_3_convergence` keys surfacing the dominant and LP/structural
-        root clusters. When False, behavior is unchanged.
+        The returned dict gains explicit `cluster_primary_convergence`
+        and `cluster_secondary_convergence` keys surfacing the calibration
+        panels. When False, behavior is unchanged.
     profile : InputProfile or None, default None
         The profile being synthesized. Used to select a name-length-matched
         baseline (full-nasab profiles get compared against long-name baselines
@@ -1188,7 +1188,7 @@ def synthesize(
 
         output["core25_mode"] = True
         output["core25_modules_run"] = len(lockable)
-        output["root_8_convergence"] = _cluster_for_root(8, CORE_25_DOMINANT_ROOT_8)
-        output["root_3_convergence"] = _cluster_for_root(3, CORE_25_STRUCTURAL_ROOT_3)
+        output["cluster_primary_convergence"] = _cluster_for_root(8, CORE_25_CLUSTER_PRIMARY)
+        output["cluster_secondary_convergence"] = _cluster_for_root(3, CORE_25_CLUSTER_SECONDARY)
 
     return output

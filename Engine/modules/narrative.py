@@ -113,10 +113,10 @@ def _build_threads(profile: InputProfile, results: List[SystemResult],
         ),
     })
 
-    # T002 — Containment architecture
+    # T002 — Architecture signature
     threads.append({
         "id": "T002_containment_architecture",
-        "title": f"Containment architecture ({su} + {pers})",
+        "title": f"Architecture signature ({su} + {pers})",
         "capacity_statement": (
             f"Soul Urge {su} drives structural stability; "
             f"Personality {pers} filters through analytical reserve "

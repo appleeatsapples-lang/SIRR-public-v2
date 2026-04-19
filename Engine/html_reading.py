@@ -666,9 +666,9 @@ footer p { font-family:'Outfit',sans-serif; font-size:9px; color:var(--text-f); 
 
     # ── Core Numbers ──
     root_meanings = {
-        1: "The Initiator", 2: "The Diplomat", 3: "The Creator",
+        1: "The Initiator", 2: "The Diplomat", 3: "The Communicator",
         4: "The Builder", 5: "The Liberator", 6: "The Nurturer",
-        7: "The Seeker", 8: "The Architect", 9: "The Humanitarian",
+        7: "The Seeker", 8: "The Executive", 9: "The Humanitarian",
         11: "The Visionary", 22: "The Master Builder", 33: "The Master Teacher",
     }
 
