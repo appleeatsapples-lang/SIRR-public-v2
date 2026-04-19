@@ -56,3 +56,13 @@ Engine/fixtures/user_profiles/*.json
 
 # Local scratch
 /tmp/
+
+# Credentials
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Reports (generated)
+reports/*.json
+!reports/.gitkeep
