@@ -29,6 +29,10 @@ from pydantic import BaseModel
 
 # §16.5 — signed URL tokens for reading access (replaces order_id in URLs)
 from tokens import mint_token, try_verify_token, TokenError
+# §16.2 — Tier 2 at-rest encryption
+from crypto import read_maybe_encrypted, write_encrypted, is_encrypted, DecryptionError
+# §16.5 — traceback sanitization
+from sanitize import sanitize_exception
 
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
@@ -284,6 +288,50 @@ def _read_json(path: Path):
     if path.exists():
         return json.loads(path.read_text(encoding="utf-8"))
     return None
+
+
+# ── §16.2 Tier 2 encryption helpers ───────────────────────────────────────
+
+def _serve_tier2_html(path: Path, order_id: str):
+    """Return a FileResponse for plaintext files, or an HTMLResponse with
+    on-the-fly decrypted content for encrypted files. Preserves backward
+    compatibility for grandfathered plaintext reading files."""
+    try:
+        raw = path.read_bytes()
+    except FileNotFoundError:
+        raise HTTPException(404, "Reading not found")
+    if is_encrypted(raw):
+        try:
+            plaintext = read_maybe_encrypted(path, order_id).decode("utf-8")
+        except DecryptionError:
+            raise HTTPException(404, "Reading not found")
+        return HTMLResponse(content=plaintext)
+    return FileResponse(str(path), media_type="text/html")
+
+
+def _encrypt_tier2_outputs(order_id: str) -> int:
+    """Encrypt an order's Tier 2 output files in place. Idempotent.
+    Called at end of a successful engine job. Returns count encrypted."""
+    readings_dir = Path(__file__).parent / "readings"
+    orders_dir = Path(__file__).parent / "orders"
+    targets = [
+        orders_dir / f"{order_id}_output.json",
+        readings_dir / f"{order_id}.html",
+        readings_dir / f"{order_id}_unified.html",
+    ]
+    encrypted = 0
+    for t in targets:
+        if not t.exists():
+            continue
+        try:
+            raw = t.read_bytes()
+            if is_encrypted(raw):
+                continue
+            write_encrypted(t, raw, order_id)
+            encrypted += 1
+        except Exception:
+            pass
+    return encrypted
 
 
 def _run_engine(profile_path: str = None, natal_chart_data: dict = None) -> dict:
@@ -684,7 +732,7 @@ async def reading_page(order_id: str):
         if order["status"] in ("pending", "paid"):
             return HTMLResponse("<html><body style='font-family:ui-monospace,monospace;background:#f5f1ea;color:#1a1814;padding:40px'>Payment confirmed. Your reading is being generated.</body></html>")
         raise HTTPException(404, "Reading not found")
-    return FileResponse(str(reading_path), media_type="text/html")
+    return _serve_tier2_html(reading_path, order_id)
 
 
 @app.get("/reading/{order_id}/unified")
@@ -717,7 +765,7 @@ async def reading_unified_page(order_id: str):
             )
         raise HTTPException(404, "Unified view not found")
 
-    return FileResponse(str(unified_path), media_type="text/html")
+    return _serve_tier2_html(unified_path, order_id)
 
 
 @app.get("/view/demo")
@@ -903,7 +951,7 @@ def _generate_unified_view(output_json_path: str, order_id: str) -> Optional[str
     """
     try:
         from unified_view import render_unified_html
-        output = json.loads(Path(output_json_path).read_text(encoding="utf-8"))
+        output = json.loads(read_maybe_encrypted(output_json_path, order_id).decode("utf-8"))
         output["unified"] = compute_unified_synthesis(output)
 
         filtered = []
@@ -1006,9 +1054,16 @@ def _generate_reading_background(order_id: str):
             reading_url=legacy_reading_url or "",
             unified_url=unified_url or "",
         )
+        # §16.2 — encrypt Tier 2 output files at rest. Idempotent.
+        try:
+            _encrypt_tier2_outputs(order_id)
+        except Exception as enc_err:
+            print(f"[tier2-encrypt] failed for order {order_id}: {type(enc_err).__name__}", file=sys.stderr)
 
-    except Exception:
-        update_order(order_id, status="failed", error=traceback.format_exc()[-500:])
+    except Exception as engine_err:
+        # §16.5 — sanitize traceback before storing so no profile content
+        # leaks into the order row even if an exception message embedded it.
+        update_order(order_id, status="failed", error=sanitize_exception(engine_err))
 
 
 @app.get("/api/order-status/{order_id}")
@@ -1020,6 +1075,45 @@ async def order_status(order_id: str):
         "status": order["status"],
         "reading_url": order.get("reading_url"),
     }
+
+
+# ── §16.2 / §16.6 — Retention purge endpoint ──────────────────────────────
+
+@app.post("/api/internal/purge")
+async def trigger_purge(request: Request):
+    """Run a Tier 2 retention sweep + Tier 3 deletion queue drain.
+
+    Authentication: caller must present the shared secret as the
+    `X-Internal-Secret` header (value of env var `SIRR_INTERNAL_SECRET`).
+    Intended to be invoked by a Railway scheduled job / external cron.
+
+    If `SIRR_INTERNAL_SECRET` is unset, the endpoint refuses all requests
+    — fail closed. Operators who want to trigger it manually must set the
+    secret in Railway env vars.
+
+    Returns a JSON summary of what the purge did: orders_removed,
+    readings_removed, tier3_processed, dry_run, retention_days, ran_at_unix.
+    Never surfaces filenames, order IDs, or any user data in the response.
+    """
+    configured_secret = os.environ.get("SIRR_INTERNAL_SECRET", "").strip()
+    if not configured_secret:
+        raise HTTPException(503, "purge endpoint disabled (no SIRR_INTERNAL_SECRET)")
+
+    provided = request.headers.get("x-internal-secret", "")
+    # Constant-time comparison to avoid timing-based side-channel
+    import hmac as _hmac
+    if not _hmac.compare_digest(provided, configured_secret):
+        raise HTTPException(401, "invalid or missing internal secret")
+
+    try:
+        from retention import purge_cycle
+        summary = purge_cycle()
+    except Exception as purge_err:
+        # Log the sanitized traceback server-side, return a generic error
+        print(f"[purge-endpoint] failed: {sanitize_exception(purge_err)}", file=sys.stderr)
+        raise HTTPException(500, "purge cycle failed")
+
+    return summary
 
 
 if __name__ == "__main__":
