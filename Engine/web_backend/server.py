@@ -27,6 +27,9 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+# §16.5 — signed URL tokens for reading access (replaces order_id in URLs)
+from tokens import mint_token, try_verify_token, TokenError
+
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
 LS_API_KEY = os.environ.get("LEMONSQUEEZY_API_KEY")
@@ -533,9 +536,141 @@ WEB_DIR = ENGINE / "web"
 async def homepage():
     return FileResponse(str(WEB_DIR / "index.html"))
 
+
+@app.get("/privacy")
+async def privacy_page():
+    return FileResponse(str(WEB_DIR / "privacy.html"))
+
+
+@app.get("/terms")
+async def terms_page():
+    return FileResponse(str(WEB_DIR / "terms.html"))
+
 @app.get("/success")
-async def success_page(order_id: str = None):
+async def success_page(order_id: str = None, token: str = None):
+    # Both accepted for backward-compat; token is preferred per §16.5
     return FileResponse(str(WEB_DIR / "success.html"))
+
+
+# ── §16.5 — Token-based reading access (preferred; no PII in URLs) ─────────
+
+def _resolve_token_or_order_id(token_or_id: str) -> str:
+    """Accept either a signed token (new canonical) or a raw order_id
+    (grandfathered). Returns the resolved order_id or raises 404."""
+    resolved = try_verify_token(token_or_id)
+    if resolved:
+        return resolved
+    # Grandfather: still accept raw order_id from legacy URLs
+    order = get_order(token_or_id)
+    if not order:
+        raise HTTPException(404, "Reading not found")
+    return token_or_id
+
+
+@app.get("/r/{token}")
+async def reading_by_token(token: str):
+    """Token-gated reading page. §16.5 — replaces /reading/{order_id} pattern."""
+    order_id = _resolve_token_or_order_id(token)
+    return await reading_page(order_id)
+
+
+@app.get("/r/{token}/unified")
+async def reading_unified_by_token(token: str):
+    """Token-gated unified view. §16.5 — replaces /reading/{order_id}/unified."""
+    order_id = _resolve_token_or_order_id(token)
+    return await reading_unified_page(order_id)
+
+
+@app.get("/api/r/{token}/status")
+async def reading_status_by_token(token: str):
+    """Token-gated polling. §16.5 — replaces /api/order-status/{order_id}."""
+    order_id = _resolve_token_or_order_id(token)
+    return await order_status(order_id)
+
+
+# ── §16.6 — Right to deletion ──────────────────────────────────────────────
+
+class DeleteRequest(BaseModel):
+    token: Optional[str] = None
+    order_id: Optional[str] = None
+    email: Optional[str] = None  # must match order's email for verification
+
+
+@app.post("/api/delete")
+async def request_deletion(req: DeleteRequest):
+    """Delete a user's Tier 2 record (order + reading files).
+
+    Authentication model: possession of a valid signed token OR possession of
+    the raw order_id AND matching email. The email check prevents a leaked
+    order_id from being used by a third party to delete someone's reading.
+
+    Tier 3 (aggregate analytics) removal is handled asynchronously — the
+    order_id is added to a deletion queue that the purge job drains within
+    30 days per the §16.2 retention commitment.
+    """
+    if not (req.token or req.order_id):
+        raise HTTPException(400, "token or order_id required")
+
+    # Resolve identity
+    if req.token:
+        resolved = try_verify_token(req.token)
+        if not resolved:
+            raise HTTPException(401, "invalid or expired token")
+        order_id = resolved
+    else:
+        order_id = req.order_id
+        order = get_order(order_id)
+        if not order:
+            raise HTTPException(404, "order not found")
+        # Email-based verification for raw order_id path
+        if not req.email or order.get("email", "").strip().lower() != req.email.strip().lower():
+            raise HTTPException(401, "email does not match order")
+
+    # Delete Tier 2 artifacts: reading HTML, unified HTML, output JSON
+    readings_dir = Path(__file__).parent / "readings"
+    orders_dir = Path(__file__).parent / "orders"
+    deleted_files = []
+    for path in [
+        readings_dir / f"{order_id}.html",
+        readings_dir / f"{order_id}_unified.html",
+        orders_dir / f"{order_id}_output.json",
+    ]:
+        if path.exists():
+            try:
+                path.unlink()
+                deleted_files.append(path.name)
+            except Exception:
+                pass
+
+    # Mark order record as deleted (retain minimal audit row, strip PII payload)
+    try:
+        update_order(
+            order_id,
+            status="deleted",
+            profile=None,
+            email_hash=None,
+            reading_url=None,
+            error=None,
+        )
+    except Exception:
+        pass
+
+    # Queue Tier 3 removal (see retention.py — drained by the purge job)
+    try:
+        _queue_tier3_deletion(order_id)
+    except Exception:
+        pass
+
+    # §16.5 log hygiene: no profile content in response, no email echoed
+    return {"status": "deleted", "files_removed": len(deleted_files)}
+
+
+def _queue_tier3_deletion(order_id: str) -> None:
+    """Append order_id to the Tier 3 deletion queue for async purging."""
+    queue_path = Path(__file__).parent / "deletion_queue.txt"
+    with open(queue_path, "a") as f:
+        f.write(f"{order_id}\n")
+
 
 @app.get("/reading/{order_id}")
 async def reading_page(order_id: str):
@@ -646,7 +781,7 @@ async def create_checkout(req: CheckoutRequest):
             args=(order_id,),
             daemon=True
         ).start()
-        return {"checkout_url": f"{BASE_URL}/success?order_id={order_id}", "order_id": order_id, "mode": "test"}
+        return {"checkout_url": f"{BASE_URL}/success?token={mint_token(order_id)}", "order_id": order_id, "token": mint_token(order_id), "mode": "test"}
 
     # ── LEMON SQUEEZY MODE ──
     if LS_API_KEY and LS_STORE_ID and LS_VARIANT_ID:
@@ -666,7 +801,7 @@ async def create_checkout(req: CheckoutRequest):
                                 "custom": {"order_id": order_id}
                             },
                             "product_options": {
-                                "redirect_url": f"{BASE_URL}/success?order_id={order_id}",
+                                "redirect_url": f"{BASE_URL}/success?token={mint_token(order_id)}",
                             },
                         },
                         "relationships": {
@@ -680,7 +815,7 @@ async def create_checkout(req: CheckoutRequest):
             raise HTTPException(500, f"Lemon Squeezy error: {resp.text[:200]}")
         checkout_url = resp.json()["data"]["attributes"]["url"]
         update_order(order_id, status="pending")
-        return {"checkout_url": checkout_url, "order_id": order_id, "mode": "lemonsqueezy"}
+        return {"checkout_url": checkout_url, "order_id": order_id, "token": mint_token(order_id), "mode": "lemonsqueezy"}
 
     # ── STRIPE MODE (fallback) ──
     session = stripe.checkout.Session.create(
@@ -697,14 +832,14 @@ async def create_checkout(req: CheckoutRequest):
             "quantity": 1,
         }],
         mode="payment",
-        success_url=f"{BASE_URL}/success?order_id={order_id}",
+        success_url=f"{BASE_URL}/success?token={mint_token(order_id)}",
         cancel_url=f"{BASE_URL}/#order",
         metadata={"order_id": order_id},
         customer_email=None,
     )
 
     update_order(order_id, stripe_session_id=session.id, status="pending")
-    return {"checkout_url": session.url, "order_id": order_id, "mode": "stripe"}
+    return {"checkout_url": session.url, "order_id": order_id, "token": mint_token(order_id), "mode": "stripe"}
 
 
 @app.post("/api/webhook/stripe")

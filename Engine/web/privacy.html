@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIRR — Privacy Policy</title>
+<meta name="description" content="How SIRR collects, uses, stores, and protects the data you provide for a symbolic reading.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital,wght@0,400;1,400&family=Newsreader:ital,wght@0,300;0,400;0,500;1,300;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #f5f1ea;
+  --bg2:      #ebe4d5;
+  --border:   rgba(26, 24, 20, 0.12);
+  --amber:    #a8482d;
+  --amber-d:  #8b3a24;
+  --indigo:   #4b5a7a;
+  --bronze:   #8b6335;
+  --text:     #1a1814;
+  --text-d:   #8a8178;
+  --text-f:   #b5ac9f;
+  --serif:    'Newsreader', 'Instrument Serif', Georgia, serif;
+  --display:  'Instrument Serif', 'Newsreader', Georgia, serif;
+  --sans:     'JetBrains Mono', ui-monospace, monospace;
+}
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: var(--serif); font-weight: 300; line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+nav {
+  position: fixed; top:0; left:0; right:0; z-index:100;
+  display: flex; justify-content:space-between; align-items:center;
+  padding: 18px 40px;
+  background: rgba(245,241,234,.92); backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+.nav-brand { font-family:var(--sans); font-size:11px; letter-spacing:.25em; color:var(--amber); font-weight:400; text-decoration:none; }
+.nav-back { font-family:var(--sans); font-size:10px; letter-spacing:.12em; color:var(--text-d); text-decoration:none; }
+.nav-back:hover { color:var(--amber); }
+main {
+  max-width: 680px; margin: 120px auto 80px; padding: 0 32px;
+}
+h1 {
+  font-family: var(--display); font-weight: 300; font-size: 48px; letter-spacing: .01em;
+  margin-bottom: 8px;
+}
+.meta {
+  font-family: var(--sans); font-size: 11px; letter-spacing: .15em; text-transform: uppercase;
+  color: var(--text-d); margin-bottom: 48px;
+}
+h2 {
+  font-family: var(--display); font-weight: 400; font-size: 24px;
+  margin-top: 56px; margin-bottom: 16px; color: var(--amber-d);
+}
+p { margin-bottom: 18px; color: var(--text); }
+ul { margin: 8px 0 24px 20px; }
+li { margin-bottom: 8px; color: var(--text); }
+strong { font-weight: 500; color: var(--text); }
+em { font-style: italic; color: var(--text-d); }
+a { color: var(--amber); text-decoration: underline; text-decoration-color: var(--text-f); }
+a:hover { text-decoration-color: var(--amber); }
+.callout {
+  background: var(--bg2); border-left: 3px solid var(--amber);
+  padding: 20px 24px; margin: 24px 0;
+  font-family: var(--serif); font-size: 15px; color: var(--text);
+}
+footer {
+  max-width: 680px; margin: 80px auto 40px; padding: 32px;
+  border-top: 1px solid var(--border);
+  font-family: var(--sans); font-size: 11px; letter-spacing: .1em; color: var(--text-d);
+  text-align: center;
+}
+</style>
+</head>
+<body>
+<nav>
+  <a href="/" class="nav-brand">S I R R</a>
+  <a href="/" class="nav-back">← BACK</a>
+</nav>
+<main>
+  <h1>Privacy Policy</h1>
+  <div class="meta">Effective 2026-04-19 · Version 1.0</div>
+
+  <p>SIRR computes a symbolic reading of your name and birth. Doing that requires you to give us personal data. This page tells you exactly what we collect, what we do with it, what we <em>don't</em> do with it, and how to get it deleted.</p>
+
+  <p>We read this before writing it: we want the policy to describe what the system <em>actually</em> does, not a list of reassurances.</p>
+
+  <h2>What you give us</h2>
+  <p>To compute your reading, we ask for:</p>
+  <ul>
+    <li><strong>Your full name</strong> — as complete as you are comfortable providing. The more complete the name, the deeper the reading.</li>
+    <li><strong>Date of birth</strong> — year, month, day.</li>
+    <li><strong>Time of birth</strong> — if known. Used for astrological computations.</li>
+    <li><strong>Place of birth</strong> — city and country, for astrological coordinates.</li>
+    <li><strong>Mother's full name</strong> — optional. Used for lineage computations.</li>
+    <li><strong>Your email</strong> — so we can deliver the reading.</li>
+  </ul>
+
+  <p>This combination — legal name plus exact date, time, and place of birth — is a near-unique identifier. We treat it accordingly.</p>
+
+  <h2>What we do with it</h2>
+  <p>When you submit your profile:</p>
+  <ul>
+    <li>The engine computes your reading. This happens on our server, not on your browser.</li>
+    <li>The reading is stored so you can access it via a private link we deliver to you.</li>
+    <li>Your profile and reading are stored <strong>encrypted at rest</strong>, with a key derived per-record. One record's key cannot decrypt another.</li>
+    <li>Your data is kept for <strong>30 days</strong>, after which it is automatically purged. The 30 days give you a window to re-download the reading, request a refund, or regenerate it if there was an issue.</li>
+  </ul>
+
+  <h2>What we don't do</h2>
+  <ul>
+    <li>We do <strong>not</strong> build a profile of you across readings. Each submission is a one-off.</li>
+    <li>We do <strong>not</strong> sell, rent, or trade your data. Not to advertisers. Not to anyone.</li>
+    <li>We do <strong>not</strong> use your reading content to train AI models, internally or externally.</li>
+    <li>We do <strong>not</strong> use third-party client-side analytics that could fingerprint you. No Google Analytics, no Mixpanel, no Hotjar.</li>
+    <li>We do <strong>not</strong> set tracking cookies. The site uses a single session cookie for your checkout flow, nothing else.</li>
+    <li>We do <strong>not</strong> share your reading with other users, publicly or privately.</li>
+  </ul>
+
+  <h2>Who can see your reading</h2>
+  <div class="callout">
+    SIRR operates on a <strong>zero-knowledge founder</strong> principle: the person who built SIRR is structurally unable to read individual user readings in production. There is no admin panel that surfaces your reading. Database access is scoped to the running service, not to humans. If a support issue requires debugging, you'll be asked to re-submit your data in an ephemeral debug mode — not to hand the operator a standing key to your record.
+  </div>
+  <p>This isn't just privacy discipline. It's liability reduction. If we can't read your data, we can't accidentally leak it, can't be compelled to produce it, and can't be held responsible for what's in it.</p>
+
+
+  <h2>Payment</h2>
+  <p>Payments are processed by <strong>Lemon Squeezy</strong>. They are the merchant of record, they handle card data, they are PCI-compliant, and they operate under their own privacy policy. SIRR never touches your card number. We receive only a transaction confirmation and an order identifier.</p>
+
+  <h2>Aggregate patterns</h2>
+  <p>We may retain <strong>aggregate, privacy-preserving statistics</strong> about readings — for example, "how often does root number X co-occur with tradition Y" — for the purpose of improving the engine. These aggregates:</p>
+  <ul>
+    <li>Never contain names, dates, places, or any identifying string</li>
+    <li>Use a hashed pseudonym derived from your email, not the email itself</li>
+    <li>Apply a k-anonymity rule: no query returns results unless five or more users share the pattern</li>
+    <li>Add differential privacy noise to all published numbers</li>
+  </ul>
+  <p>If you exercise your right to deletion (below), your contribution is removed from these aggregates within 30 days.</p>
+
+  <h2>Your rights</h2>
+  <p>Regardless of where you live, you have the following rights over your data held by SIRR:</p>
+  <ul>
+    <li><strong>Right to access</strong> — you receive your reading via private link; you can re-download it any time within the 30-day window.</li>
+    <li><strong>Right to delete</strong> — one-click deletion available at the bottom of your reading page, or by emailing the contact below. Deletion removes your encrypted record immediately and your aggregate contribution within 30 days.</li>
+    <li><strong>Right to correction</strong> — if your reading computed on bad input, contact us to regenerate. We don't keep editable records, so correction means regeneration from corrected input.</li>
+    <li><strong>Right to portability</strong> — the reading you receive is already yours in downloadable form (HTML / PDF). You own it.</li>
+    <li><strong>Right to object</strong> — you may object to our processing at any time by requesting deletion.</li>
+  </ul>
+
+  <h2>Jurisdictional notes</h2>
+  <p><strong>If you are in the European Union</strong>, this policy is our GDPR Article 13/14 notice. Our lawful basis is <em>performance of a contract</em> — you requested a reading, we need your data to compute it. The legitimate interest in aggregate pattern research is disclosed above and can be opted out via deletion.</p>
+  <p><strong>If you are in Saudi Arabia</strong>, this policy is our Personal Data Protection Law (PDPL) notice. Our purpose is limited, our collection is minimized, and we do not transfer your personal data outside the region for any purpose other than payment processing (Lemon Squeezy).</p>
+  <p><strong>If you are in the United States</strong>, no state privacy law currently prohibits our processing. California residents: we do not sell or share your data as defined under CCPA.</p>
+
+  <h2>Data breach</h2>
+  <p>If we become aware of a data breach affecting your reading, we will notify you via the email you provided, within the timeframe required by the law applicable to your location, but no later than 72 hours. We will describe what was accessed, what mitigations we've taken, and what you should do.</p>
+
+  <h2>Age requirement</h2>
+  <p>SIRR is not for anyone under <strong>18 years of age</strong>. By submitting a profile, you confirm you are at least 18. We do not knowingly collect data from minors. If you believe a minor has submitted a profile, contact us and we will delete the record.</p>
+
+
+  <h2>Security</h2>
+  <ul>
+    <li>All traffic over TLS 1.3</li>
+    <li>Reading records encrypted at rest with per-record keys</li>
+    <li>Reading access tokens are signed and expire in 30 days</li>
+    <li>No personal data in URLs, log files, or error messages</li>
+    <li>Secrets stored only in production environment variables, never in code</li>
+    <li>All operator accounts require two-factor authentication</li>
+  </ul>
+
+  <h2>Contact for data requests</h2>
+  <p>For access, deletion, correction, portability, or any other request regarding your data held by SIRR:</p>
+  <p><strong>Email:</strong> <a href="mailto:privacy@sirr.app">privacy@sirr.app</a></p>
+  <p>We respond within five business days. Deletion requests are executed within 24 hours.</p>
+
+  <h2>Changes to this policy</h2>
+  <p>If this policy changes in any way that reduces your rights or expands our data collection, we will notify you via email (for customers on file) before the change takes effect. Minor editorial updates do not trigger notification but are logged in the version history below.</p>
+
+  <h2>Version history</h2>
+  <ul>
+    <li>Version 1.0 — 2026-04-19 — Initial publication.</li>
+  </ul>
+</main>
+<footer>
+  SIRR · سِرّ &nbsp;·&nbsp; <a href="/">Home</a> &nbsp;·&nbsp; <a href="/terms">Terms of Service</a>
+</footer>
+</body>
+</html>

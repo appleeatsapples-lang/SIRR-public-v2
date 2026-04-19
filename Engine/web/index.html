@@ -289,6 +289,11 @@ nav.scrolled { border-color:var(--border); background:rgba(245,241,234,.88); bac
 .btn-pay { background:var(--amber); color:var(--bg); border-color:var(--amber); flex:1; font-weight:500; font-size:13px; }
 .btn-pay:hover { background:var(--gold); }
 .btn-pay:disabled { opacity:.5; cursor:not-allowed; }
+.age-gate { margin-top:24px; padding-top:20px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:12px; }
+.gate-row { display:flex; align-items:flex-start; gap:12px; cursor:pointer; font-family:var(--sans); font-size:12px; color:var(--text); line-height:1.6; }
+.gate-row input[type="checkbox"] { margin-top:3px; accent-color:var(--amber); cursor:pointer; flex-shrink:0; }
+.gate-row a { color:var(--amber); text-decoration:underline; text-decoration-color:var(--text-f); }
+.gate-row a:hover { text-decoration-color:var(--amber); }
 .error-msg { font-family:var(--sans); font-size:11px; color:#C07070; margin-top:8px; display:none; }
 </style>
 
@@ -304,6 +309,10 @@ footer {
 .footer-links a { font-family:var(--sans); font-size:10px; color:var(--text-f); letter-spacing:.1em; text-decoration:none; }
 .footer-links a:hover { color:var(--text-d); }
 .footer-note { font-family:var(--sans); font-size:10px; color:var(--text-f); text-align:center; max-width:420px; line-height:1.9; letter-spacing:.03em; }
+.footer-links { display:flex; justify-content:center; align-items:center; gap:10px; margin-top:20px; font-family:var(--sans); font-size:10px; letter-spacing:.12em; }
+.footer-links a { color:var(--text-d); text-decoration:none; text-transform:uppercase; transition:color .2s; }
+.footer-links a:hover { color:var(--amber); }
+.footer-dot { color:var(--text-f); }
 
 /* ── Processing overlay ── */
 #processing-overlay {
@@ -547,10 +556,20 @@ footer {
     <!-- Step 5: Review + Pay -->
     <div class="step-panel" id="step-5">
       <div class="review-box" id="review-content"></div>
+      <div class="age-gate">
+        <label class="gate-row">
+          <input type="checkbox" id="age-confirm" onchange="updatePayEnabled()">
+          <span id="gate-age">I confirm I am 18 years of age or older.</span>
+        </label>
+        <label class="gate-row">
+          <input type="checkbox" id="terms-confirm" onchange="updatePayEnabled()">
+          <span id="gate-terms">I have read and agree to the <a href="/terms" target="_blank">Terms of Service</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.</span>
+        </label>
+      </div>
       <div id="err-5" class="error-msg">Something went wrong. Please try again.</div>
       <div class="form-nav">
         <button class="btn-back" onclick="goStep(4)">← Back</button>
-        <button class="btn-pay" id="pay-btn" onclick="startCheckout()">Pay $49 &amp; Get Reading</button>
+        <button class="btn-pay" id="pay-btn" onclick="startCheckout()" disabled>Pay $49 &amp; Get Reading</button>
       </div>
     </div>
   </div>
@@ -565,6 +584,11 @@ footer {
     You receive a written portrait, the patterns and tensions beneath it, and the evidence that supports the read.
     One-time payment. No subscription. No account required.
   </p>
+  <div class="footer-links">
+    <a href="/privacy" id="footer-privacy-link">Privacy</a>
+    <span class="footer-dot">·</span>
+    <a href="/terms" id="footer-terms-link">Terms</a>
+  </div>
 </footer>
 
 <!-- ── Processing overlay ── -->
@@ -615,6 +639,10 @@ const COPY = {
     name_arabic_label_html: 'Arabic rendering <span class="optional-tag" id="name-arabic-tag">auto-filled · editable</span>',
     err_1: 'Please enter your full name — at least your given name and family name.',
     footer_note: 'SIRR delivers a unified structural reading of your name and birth — not a forecast. You receive a written portrait, the patterns and tensions beneath it, and the evidence that supports the read. One-time payment. No subscription. No account required.',
+    gate_age: 'I confirm I am 18 years of age or older.',
+    gate_terms: 'I have read and agree to the <a href="/terms" target="_blank">Terms of Service</a> and <a href="/privacy" target="_blank">Privacy Policy</a>.',
+    footer_privacy: 'Privacy',
+    footer_terms: 'Terms',
     lang: 'العربية'
   },
   ar: {
@@ -643,6 +671,10 @@ const COPY = {
     name_arabic_label_html: 'الاسم بالعربية <span class="optional-tag" id="name-arabic-tag">يُملأ تلقائياً · قابل للتعديل</span>',
     err_1: 'يرجى إدخال اسمك الكامل — على الأقل الاسم الأول والعائلة.',
     footer_note: 'يقدِّم SIRR قراءة بنيوية موحَّدة لاسمك وميلادك — لا توقُّعاً. ما تتسلَّمه صورة مكتوبة، والأنماط والتوترات التي تحتها، والأدلّة التي تسند القراءة. دفعة واحدة. بلا اشتراك. وبلا حساب.',
+    gate_age: 'أؤكِّد أنَّني في الثامنة عشرة من عمري أو أكبر.',
+    gate_terms: 'لقد قرأت <a href="/terms" target="_blank">شروط الخدمة</a> و<a href="/privacy" target="_blank">سياسة الخصوصية</a> وأوافق عليهما.',
+    footer_privacy: 'الخصوصية',
+    footer_terms: 'الشروط',
     lang: 'English'
   }
 }
@@ -675,6 +707,10 @@ function toggleLang() {
   document.getElementById('name-arabic-label').innerHTML = c.name_arabic_label_html;
   document.getElementById('err-1').textContent = c.err_1;
   document.getElementById('footer-note').textContent = c.footer_note;
+  const gAge = document.getElementById('gate-age'); if (gAge) gAge.textContent = c.gate_age;
+  const gTerms = document.getElementById('gate-terms'); if (gTerms) gTerms.innerHTML = c.gate_terms;
+  const fp = document.getElementById('footer-privacy-link'); if (fp) fp.textContent = c.footer_privacy;
+  const ft = document.getElementById('footer-terms-link'); if (ft) ft.textContent = c.footer_terms;
   document.getElementById('lang-btn').textContent = c.lang;
   document.documentElement.lang = lang;
   document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
@@ -889,6 +925,13 @@ function buildReview() {
 }
 
 /* ── Checkout ── */
+function updatePayEnabled() {
+  const age = document.getElementById('age-confirm').checked;
+  const terms = document.getElementById('terms-confirm').checked;
+  const btn = document.getElementById('pay-btn');
+  btn.disabled = !(age && terms);
+}
+
 async function startCheckout() {
   const btn = document.getElementById('pay-btn');
   btn.disabled = true;
