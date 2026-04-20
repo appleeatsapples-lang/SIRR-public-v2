@@ -36,6 +36,96 @@ jobs:
         working-directory: Engine
         run: python runner.py --output /tmp/smoke_output.json && test -s /tmp/smoke_output.json
 
+  boot-smoke:
+    # Catches the class of bug that broke 2p.1 deploy: dep installed in
+    # CI context but missing from root requirements.txt → server crashes
+    # at import, healthcheck fails. Pytest alone doesn't detect this; this
+    # job actually boots the server as Railway would.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies (root requirements.txt, same as Railway)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Boot uvicorn + curl the endpoints a real user hits
+        working-directory: Engine/web_backend
+        env:
+          SIRR_INTERNAL_SECRET: ci-smoke-secret
+          SIRR_TOKEN_SECRET: ci-smoke-token
+          SIRR_ENCRYPTION_KEY: ci00000000000000000000000000000000000000000000000000000000000000
+        run: |
+          # Start server in background, capture logs
+          python -m uvicorn server:app --host 127.0.0.1 --port 8000 \
+            --log-level warning > /tmp/uvicorn.log 2>&1 &
+          SERVER_PID=$!
+
+          # Wait up to 30s for port to be up
+          for i in $(seq 1 30); do
+            if curl -sf -o /dev/null http://127.0.0.1:8000/api/status; then
+              echo "✓ server came up after ${i}s"
+              break
+            fi
+            if ! kill -0 $SERVER_PID 2>/dev/null; then
+              echo "✗ server died during startup"
+              echo "---- uvicorn log ----"
+              cat /tmp/uvicorn.log
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if ! curl -sf -o /dev/null http://127.0.0.1:8000/api/status; then
+            echo "✗ server never became responsive"
+            echo "---- uvicorn log ----"
+            cat /tmp/uvicorn.log
+            kill $SERVER_PID 2>/dev/null || true
+            exit 1
+          fi
+
+          # Core user-facing endpoints
+          set -e
+          echo "→ GET /"
+          test "$(curl -so /dev/null -w '%{http_code}' http://127.0.0.1:8000/)" = "200"
+
+          echo "→ GET /api/status"
+          test "$(curl -so /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/status)" = "200"
+
+          echo "→ GET /privacy"
+          test "$(curl -so /dev/null -w '%{http_code}' http://127.0.0.1:8000/privacy)" = "200"
+
+          echo "→ GET /terms"
+          test "$(curl -so /dev/null -w '%{http_code}' http://127.0.0.1:8000/terms)" = "200"
+
+          echo "→ GET /admin"
+          test "$(curl -so /dev/null -w '%{http_code}' http://127.0.0.1:8000/admin)" = "200"
+
+          # Auth-gated admin surface
+          echo "→ /api/internal/metrics without auth → 401"
+          test "$(curl -so /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/internal/metrics)" = "401"
+
+          echo "→ /api/internal/metrics with auth → 200"
+          test "$(curl -so /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/internal/metrics -H 'X-Internal-Secret: ci-smoke-secret')" = "200"
+
+          # Styled error page branch
+          echo "→ GET /reading/nonexistent (browser accept) → 404 styled HTML"
+          body=$(curl -s http://127.0.0.1:8000/reading/nonexistent -H 'Accept: text/html')
+          echo "$body" | grep -q "Not found" || (echo "✗ 404 page missing expected content"; echo "$body" | head -20; exit 1)
+
+          # Tear down
+          kill $SERVER_PID
+          wait $SERVER_PID 2>/dev/null || true
+          echo "✓ boot-smoke passed"
+
   secrets-scan:
     runs-on: ubuntu-latest
     steps:
