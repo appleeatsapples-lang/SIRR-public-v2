@@ -707,6 +707,14 @@ async def reading_unified_by_token(token: str):
     return await reading_unified_page(order_id)
 
 
+@app.get("/r/{token}/merged")
+async def reading_merged_by_token(token: str):
+    """Token-gated merged view. PR #18 — combines unified architecture
+    with legacy visual vocabulary at each domain header."""
+    order_id = _resolve_token_or_order_id(token)
+    return await reading_merged_page(order_id)
+
+
 @app.get("/api/r/{token}/status")
 async def reading_status_by_token(token: str):
     """Token-gated polling. §16.5 — replaces /api/order-status/{order_id}."""
@@ -760,6 +768,7 @@ async def request_deletion(request: Request, req: DeleteRequest):
     for path in [
         readings_dir / f"{order_id}.html",
         readings_dir / f"{order_id}_unified.html",
+        readings_dir / f"{order_id}_merged.html",
         orders_dir / f"{order_id}_output.json",
     ]:
         if path.exists():
@@ -842,6 +851,33 @@ async def reading_unified_page(order_id: str):
         raise HTTPException(404, "Unified view not found")
 
     return _serve_tier2_html(unified_path, order_id)
+
+
+@app.get("/reading/{order_id}/merged")
+async def reading_merged_page(order_id: str):
+    """Serve the SIRR merged product view for a completed order.
+
+    Additive to legacy + unified — generated alongside them by
+    _generate_merged_view(). Lazy-regenerates from output JSON on demand
+    for orders completed before the merged view was deployed.
+    """
+    readings_dir = READINGS_DIR
+    merged_path = readings_dir / f"{order_id}_merged.html"
+
+    if not merged_path.exists():
+        output_json = ORDERS_DIR / f"{order_id}_output.json"
+        if output_json.exists():
+            _generate_merged_view(str(output_json), order_id)
+
+    if not merged_path.exists():
+        order = get_order(order_id)
+        if not order:
+            raise HTTPException(404, "Merged view not found")
+        if order["status"] in ("processing", "paid", "pending"):
+            return HTMLResponse(render_reading_processing())
+        raise HTTPException(404, "Merged view not found")
+
+    return _serve_tier2_html(merged_path, order_id)
 
 
 @app.get("/view/demo")
@@ -1058,6 +1094,44 @@ def _generate_unified_view(output_json_path: str, order_id: str) -> Optional[str
         return None
 
 
+def _generate_merged_view(output_json_path: str, order_id: str) -> Optional[str]:
+    """Render the SIRR merged product view from an order's engine output.
+
+    Additive to legacy + unified: never replaces them, never raises.
+    Writes readings/{order_id}_merged.html and returns the URL path on
+    success.
+
+    Unlike _generate_unified_view, we do NOT strip un-allowlisted results
+    from output["results"]. The merged view's visual extractors
+    (render_name_cards, extract_animal_profile, extract_planetary_profile)
+    need access to modules like tarot_birth, tarot_name, cardology,
+    celtic_tree, and mayan that aren't in SIRR_UNIFIED_ALLOWLIST.
+    Un-tagged results remain in the list but are naturally invisible to
+    render_domain_merged, which filters rows by r["domain"]. So tables
+    still only show allowlisted content; visual blocks can draw on the
+    full set.
+    """
+    try:
+        from merged_view import render_merged_html
+        output = json.loads(read_maybe_encrypted(output_json_path, order_id).decode("utf-8"))
+        output["unified"] = compute_unified_synthesis(output)
+        for r in output.get("results", []):
+            rid = r.get("id", "")
+            if rid in SIRR_UNIFIED_ALLOWLIST:
+                r["domain"] = DOMAIN_MAP[rid]
+                r["tradition"] = MODULE_TRADITION.get(rid, "Other Traditions")
+        output["view"] = "merged"
+
+        readings_dir = READINGS_DIR
+        readings_dir.mkdir(parents=True, exist_ok=True)
+        merged_path = readings_dir / f"{order_id}_merged.html"
+        merged_path.write_text(render_merged_html(output), encoding="utf-8")
+        return f"/reading/{order_id}/merged"
+    except Exception as e:
+        print(f"[merged_view] failed for order {order_id}: {e}", file=sys.stderr)
+        return None
+
+
 def _generate_reading_background(order_id: str):
     """Background thread: run engine + generate reading + save HTML."""
     try:
@@ -1131,11 +1205,15 @@ def _generate_reading_background(order_id: str):
         # ── Unified product view (pure Python, no API calls) ──
         unified_url = _generate_unified_view(output_path, order_id)
 
+        # ── Merged product view (visual hydration of unified domains) ──
+        merged_url = _generate_merged_view(output_path, order_id)
+
         update_order(
             order_id,
             status="ready",
             reading_url=legacy_reading_url or "",
             unified_url=unified_url or "",
+            merged_url=merged_url or "",
         )
         # §16.2 — encrypt Tier 2 output files at rest. Idempotent.
         try:

@@ -939,7 +939,7 @@ footer p { font-family:'Outfit',sans-serif; font-size:9px; color:var(--text-f); 
         # for this particular profile. Showing an empty shell looks broken;
         # omitting it is closer to the intent.
         is_empty = (
-            (not primary_val or primary_val.strip() in ("—", "-", "")) and
+            (not primary_val or primary_val.strip() in HIDE_EXACT_VALUES) and
             not secondary and
             not short_interp
         )

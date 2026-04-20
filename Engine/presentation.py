@@ -23,6 +23,11 @@ HIDE_EXACT_VALUES = {
     "—", "-", "",
     "True", "False", "true", "false",
     "male", "female", "Male", "Female",
+    # F2.2 (2026-04-20 audit): stringified null-ish hint values that
+    # legacy modules sometimes emit as placeholder text. Hiding them
+    # here means they’re filtered out of both unified and merged
+    # tables and from the legacy is_empty check.
+    "None", "none", "NONE", "N/A", "n/a", "null", "NULL", "undefined",
 }
 
 # Modules whose output has no reader-facing shape on first view
