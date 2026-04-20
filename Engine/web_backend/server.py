@@ -66,6 +66,20 @@ from unified_synthesis import compute_unified_synthesis
 app = FastAPI(title="SIRR Engine", version="2.0")
 
 
+# ── Router wire-in ────────────────────────────────────────────────────────
+# Extracted route groups live in routers/*.py. Each router is a small,
+# focused APIRouter with its own auth + helpers. server.py remains the
+# composition point + home for cross-cutting concerns (exception handler,
+# engine orchestration, checkout flow).
+from routers.admin import router as admin_router
+from routers.retention import router as retention_router
+from routers.pages import router as pages_router
+
+app.include_router(admin_router)
+app.include_router(retention_router)
+app.include_router(pages_router)
+
+
 # ── Styled error pages for browser requests, JSON for API ────────────────
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -627,27 +641,10 @@ def get_traditions():
 
 
 # ── Website / Commercial Endpoints ────────────────────────────────────────
+# Static page routes (/, /privacy, /terms, /success) moved to routers/pages.py.
+# WEB_DIR retained here because other routes (e.g. token-gated reading) use it.
 
 WEB_DIR = ENGINE / "web"
-
-@app.get("/")
-async def homepage():
-    return FileResponse(str(WEB_DIR / "index.html"))
-
-
-@app.get("/privacy")
-async def privacy_page():
-    return FileResponse(str(WEB_DIR / "privacy.html"))
-
-
-@app.get("/terms")
-async def terms_page():
-    return FileResponse(str(WEB_DIR / "terms.html"))
-
-@app.get("/success")
-async def success_page(order_id: str = None, token: str = None):
-    # Both accepted for backward-compat; token is preferred per §16.5
-    return FileResponse(str(WEB_DIR / "success.html"))
 
 
 # ── §16.5 — Token-based reading access (preferred; no PII in URLs) ─────────
@@ -1124,91 +1121,13 @@ async def order_status(order_id: str):
     }
 
 
-# ── §16.2 / §16.6 — Retention purge endpoint ──────────────────────────────
-
-@app.post("/api/internal/purge")
-async def trigger_purge(request: Request):
-    """Run a Tier 2 retention sweep + Tier 3 deletion queue drain.
-
-    Authentication: caller must present the shared secret as the
-    `X-Internal-Secret` header (value of env var `SIRR_INTERNAL_SECRET`).
-    Intended to be invoked by a Railway scheduled job / external cron.
-
-    If `SIRR_INTERNAL_SECRET` is unset, the endpoint refuses all requests
-    — fail closed. Operators who want to trigger it manually must set the
-    secret in Railway env vars.
-
-    Returns a JSON summary of what the purge did: orders_removed,
-    readings_removed, tier3_processed, dry_run, retention_days, ran_at_unix.
-    Never surfaces filenames, order IDs, or any user data in the response.
-    """
-    configured_secret = os.environ.get("SIRR_INTERNAL_SECRET", "").strip()
-    if not configured_secret:
-        raise HTTPException(503, "purge endpoint disabled (no SIRR_INTERNAL_SECRET)")
-
-    provided = request.headers.get("x-internal-secret", "")
-    # Constant-time comparison to avoid timing-based side-channel
-    import hmac as _hmac
-    if not _hmac.compare_digest(provided, configured_secret):
-        raise HTTPException(401, "invalid or missing internal secret")
-
-    try:
-        from retention import purge_cycle
-        summary = purge_cycle()
-    except Exception as purge_err:
-        # Log the sanitized traceback server-side, return a generic error
-        print(f"[purge-endpoint] failed: {sanitize_exception(purge_err)}", file=sys.stderr)
-        raise HTTPException(500, "purge cycle failed")
-
-    return summary
-
-
-# ── §16.3 — Zero-knowledge operator metrics ───────────────────────────────
-
-def _require_internal_secret(request: Request) -> None:
-    """Shared auth helper for /api/internal/* endpoints. Raises 503 if the
-    secret is unset, 401 if the provided header doesn't match."""
-    configured = os.environ.get("SIRR_INTERNAL_SECRET", "").strip()
-    if not configured:
-        raise HTTPException(503, "endpoint disabled (no SIRR_INTERNAL_SECRET)")
-    provided = request.headers.get("x-internal-secret", "")
-    import hmac as _hmac
-    if not _hmac.compare_digest(provided, configured):
-        raise HTTPException(401, "invalid or missing internal secret")
-
-
-@app.get("/api/internal/metrics")
-async def operator_metrics(request: Request):
-    """Zero-knowledge operator dashboard JSON.
-
-    Returns aggregate counts / distributions / health indicators. Never
-    returns order_ids, names, emails, DOBs, or anything that could point
-    at a specific customer. Rare buckets (<5 members) collapsed.
-
-    Auth: same `X-Internal-Secret` header as `/api/internal/purge`.
-    """
-    _require_internal_secret(request)
-    try:
-        from metrics import compute_snapshot
-        return compute_snapshot()
-    except Exception as metrics_err:
-        print(f"[metrics-endpoint] failed: {sanitize_exception(metrics_err)}", file=sys.stderr)
-        raise HTTPException(500, "metrics computation failed")
-
-
-@app.get("/admin")
-async def admin_dashboard():
-    """Renders the operator dashboard HTML. The page itself is static; on
-    load it prompts for the internal secret and fetches /api/internal/metrics.
-
-    The secret lives in the browser's memory for the session only. The
-    server never stores it, never logs it, and never returns it. This
-    keeps the admin surface stateless and leak-resistant.
-    """
-    admin_html = WEB_DIR / "admin.html"
-    if not admin_html.exists():
-        raise HTTPException(404, "admin dashboard not bundled")
-    return FileResponse(str(admin_html), media_type="text/html")
+# ── Retention + admin + static pages ──────────────────────────────────────
+# The following route groups moved to routers/ for clarity:
+#   /api/internal/purge   → routers/retention.py
+#   /api/internal/metrics → routers/admin.py
+#   /admin                → routers/admin.py
+#   /, /privacy, /terms, /success → routers/pages.py
+# Shared auth lives in auth.py (require_internal_secret).
 
 
 if __name__ == "__main__":
