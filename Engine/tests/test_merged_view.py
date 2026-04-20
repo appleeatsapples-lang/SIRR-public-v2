@@ -66,7 +66,7 @@ def test_all_four_visual_blocks_present(synthetic_output):
     from merged_view import render_merged_html
     html = render_merged_html(synthetic_output)
     assert "Your Numeric Signature" in html
-    assert "Your Cards" in html
+    assert "Cards Derived from Your Name" in html
     assert "Your Animals" in html
     assert "Your Planets" in html
 
@@ -129,7 +129,7 @@ def test_graceful_degradation_no_numerology(synthetic_output):
     assert "Your Numeric Signature" not in html
     # Rest of the page still renders
     assert ">Numerology</h2>" in html
-    assert "Your Cards" in html
+    assert "Cards Derived from Your Name" in html
     assert "Your Animals" in html
 
 
@@ -151,7 +151,7 @@ def test_graceful_degradation_no_animals(synthetic_output):
     from merged_view import render_merged_html
     html = render_merged_html(clone)
     assert "Your Animals" not in html
-    assert "Your Cards" in html
+    assert "Cards Derived from Your Name" in html
     assert "Your Planets" in html
 
 
@@ -164,7 +164,7 @@ def test_graceful_degradation_no_planets(synthetic_output):
     assert "Your Planets" not in html
     # Animal block and others still present
     assert "Your Animals" in html
-    assert "Your Cards" in html
+    assert "Cards Derived from Your Name" in html
 
 
 def test_unified_view_still_renders(synthetic_output):
@@ -181,7 +181,7 @@ def test_unified_view_still_renders(synthetic_output):
     assert "Monte Carlo Evidence" in html
     # Unified view does NOT include the merged-view visual blocks
     assert "Your Numeric Signature" not in html
-    assert "Your Cards" not in html
+    assert "Cards Derived from Your Name" not in html
 
 
 def test_f22_stringified_null_values_filtered():
@@ -316,3 +316,107 @@ def test_unified_view_untouched_by_density_pass(synthetic_output):
     # And there's no "more-rows" or "footnote" disclosure — unified is unchanged
     assert 'class="more-rows"' not in html
     assert 'class="footnote"' not in html
+
+
+# ─────────────────────────────────────────────────────────────
+# PR #20 hierarchy pass guards
+# ─────────────────────────────────────────────────────────────
+
+
+def test_tarot_block_relabeled_for_name_intelligence(synthetic_output):
+    """The tarot/cardology block's title must make the thematic link
+    to name intelligence explicit. 'Your Cards' was too divinatory-generic
+    sitting inside a 'Name Intelligence' domain."""
+    from merged_view import render_merged_html
+    html = render_merged_html(synthetic_output)
+    assert "Cards Derived from Your Name" in html
+    # Old label must be gone to prevent drift back
+    assert "<div class=\"block-title\">Your Cards</div>" not in html
+
+
+def test_convergence_verdict_sentence_present(synthetic_output):
+    """Convergence domain must lead with a verdict sentence answering
+    'so what actually converges most strongly here?' before the receipts."""
+    from merged_view import render_merged_html
+    html = render_merged_html(synthetic_output)
+    assert 'class="convergence-verdict"' in html
+    assert "converge most strongly on" in html
+    # Verdict appears within the Convergence domain section, above the
+    # convergences table — find the anchors and verify order
+    convergence_h2 = html.find("<h2>Convergence</h2>")
+    verdict = html.find('class="convergence-verdict"')
+    convergences_table = html.find('class="convergences"')
+    assert convergence_h2 > 0
+    assert verdict > convergence_h2
+    # convergences table may not always be at a known offset, but if
+    # present it should be after the verdict
+    if convergences_table > 0:
+        assert verdict < convergences_table
+
+
+def test_convergence_verdict_shows_top_axes(synthetic_output):
+    """Verdict should surface the top number, element, and timing axes
+    with system/group counts."""
+    from merged_view import render_merged_html
+    html = render_merged_html(synthetic_output)
+    # Synthetic fixture has strong convergences in all three axes
+    assert "Number" in html
+    assert "Element" in html
+    assert "Timing" in html
+    # And the system count pattern "N systems"
+    import re
+    assert re.search(r"\d+ systems", html), "verdict should cite system counts"
+
+
+def test_bridging_receipt_header_between_visual_and_rows(synthetic_output):
+    """Each domain with both a visual block and rows must have a bridging
+    'How each tradition reads this' header marking the tier transition."""
+    from merged_view import render_merged_html
+    html = render_merged_html(synthetic_output)
+    assert 'class="receipt-header"' in html
+    assert "How each tradition reads this" in html
+    # Must appear at least once per domain with a visual (N, NI, AT)
+    assert html.count("How each tradition reads this") >= 3
+
+
+def test_astro_aux_inline_band_replaces_chip_row(synthetic_output):
+    """Astro secondary symbols (Vedic / Celtic / Mayan / Temperament)
+    should render as a single inline band, not four floating chips."""
+    from merged_view import render_merged_html
+    html = render_merged_html(synthetic_output)
+    assert 'class="animal-aux"' in html
+    # The old bubble-chip layout must be gone
+    assert 'class="chip-row"' not in html
+    # Labels should use aux-label styling
+    assert 'class="aux-label"' in html
+
+
+def test_tension_pull_quote_decoration_stripped(synthetic_output):
+    """Tension callout must NOT use the decorative opening quote
+    (previously rendered via ::before with no closing mate, making
+    the box look unfinished)."""
+    from merged_view import render_merged_html
+    html = render_merged_html(synthetic_output)
+    # If tension renders, verify CSS override is in scope — the
+    # VISUAL_CSS section must include the ::before reset
+    assert 'content: none !important' in html
+    # And a border-left override
+    assert 'border-left: 3px solid var(--accent);' in html
+
+
+def test_server_merged_route_has_mtime_regen_logic():
+    """The /reading/{id}/merged route must include the mtime-based
+    regen check (F7.3 fix) so that cached HTML is refreshed when the
+    rendering code has been updated."""
+    import importlib.util
+    spec = importlib.util.find_spec("server")
+    server = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(server)
+
+    import inspect
+    src = inspect.getsource(server.reading_merged_page)
+    # Must check code mtime vs html mtime
+    assert "code_mtime" in src
+    assert "html_mtime" in src
+    # Must set should_regen flag
+    assert "should_regen" in src

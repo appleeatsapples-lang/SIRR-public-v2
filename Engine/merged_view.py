@@ -430,6 +430,129 @@ details.footnote > .footnote-body {
   text-transform: none;
   margin: 0 4px;
 }
+
+/* ─── PR #20 hierarchy pass ─── */
+
+/* Bridging header between visual block and receipt rows.
+   Marks the tier transition: hero above, receipts below. */
+.receipt-header {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--muted);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin: 8px 0 16px;
+  padding: 10px 0 9px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  text-align: center;
+}
+
+/* Verdict line at top of Convergence domain — answers
+   "so what actually converges most strongly here?" before the table. */
+.convergence-verdict {
+  margin: 0 0 28px;
+  padding: 20px 24px;
+  background: var(--bg-alt);
+  border-left: 3px solid var(--accent);
+  border-radius: 2px;
+}
+
+.convergence-verdict .verdict-lead {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.convergence-verdict .verdict-axes {
+  font-family: 'Newsreader', serif;
+  font-size: 15.5px;
+  color: var(--fg);
+  line-height: 1.9;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.convergence-verdict .verdict-axis {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-right: 10px;
+}
+
+.convergence-verdict strong {
+  color: var(--accent);
+  font-family: 'Instrument Serif', serif;
+  font-size: 22px;
+  font-weight: 400;
+  margin-right: 10px;
+  letter-spacing: 0;
+}
+
+.convergence-verdict .verdict-count {
+  font-family: 'Newsreader', serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Astro animals secondary info — consolidated inline band replacing
+   the previous floating chip-row. Reduces collage feel. */
+.animal-aux {
+  margin-top: 18px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  font-family: 'Newsreader', serif;
+  font-size: 13.5px;
+  color: var(--fg-soft);
+  line-height: 1.8;
+}
+
+.animal-aux .aux-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.animal-aux .aux-value {
+  color: var(--fg);
+  font-weight: 500;
+}
+
+.animal-aux .aux-sep {
+  color: var(--line-strong);
+  margin: 0 10px;
+}
+
+/* Tension pull-quote redesign — strip the decorative opening quote
+   (previously rendered via ::before with no closing mate, which made
+   the box look unfinished). Replace with a clean left-bordered callout. */
+.tension {
+  margin: 32px 0 40px !important;
+  padding: 24px 28px 22px 28px !important;
+  border-left: 3px solid var(--accent);
+  border-radius: 2px;
+  background: var(--bg-alt);
+}
+
+.tension::before { content: none !important; }
+
+.tension.aligned { border-left-color: var(--muted); }
+
+.tension .label { margin-bottom: 10px !important; }
+
+.tension .sentence {
+  font-size: clamp(17px, 2.6vw, 22px) !important;
+  line-height: 1.5 !important;
+}
 """
 
 CSS = _UNIFIED_CSS + VISUAL_CSS
@@ -599,7 +722,7 @@ def render_name_cards(results_idx: Dict[str, Dict]) -> str:
 
     return f"""
     <section class="visual-block">
-      <div class="block-title">Your Cards</div>
+      <div class="block-title">Cards Derived from Your Name</div>
       <div class="card-row">{"".join(cards)}</div>
     </section>
     """
@@ -640,25 +763,32 @@ def render_astro_animals(animal: Dict[str, Any]) -> str:
     if day_animal and day_animal != year_animal:
         cards.append(_animal_card_html(day_animal, day_element, None, "Day · True Self"))
 
-    # Secondary chips — only include the ones with real values
-    chip_defs = [
+    # Secondary symbols — consolidated into one inline band below the
+    # primary animals. Previously four floating chips; the chip shapes
+    # created a "collage" feel (PR #20 hierarchy pass).
+    aux_defs = [
         ("Vedic", animal.get("nakshatra_animal")),
         ("Celtic", animal.get("celtic_tree")),
         ("Mayan", animal.get("mayan_sign")),
         ("Temperament", animal.get("temperament_type")),
     ]
-    chips = [
-        f'<div class="chip">{_esc(label)}: <strong>{_esc(value)}</strong></div>'
-        for label, value in chip_defs
+    aux_parts = [
+        f'<span class="aux-label">{_esc(label)}</span> '
+        f'<span class="aux-value">{_esc(value)}</span>'
+        for label, value in aux_defs
         if value
     ]
-    chip_row_html = f'<div class="chip-row">{"".join(chips)}</div>' if chips else ""
+    if aux_parts:
+        sep = ' <span class="aux-sep">·</span> '
+        aux_row_html = f'<div class="animal-aux">{sep.join(aux_parts)}</div>'
+    else:
+        aux_row_html = ""
 
     return f"""
     <section class="visual-block">
       <div class="block-title">Your Animals</div>
       <div class="figure-row">{"".join(cards)}</div>
-      {chip_row_html}
+      {aux_row_html}
     </section>
     """
 
@@ -799,6 +929,59 @@ def render_astro_planets(planet: Dict[str, Any]) -> str:
 # zero-regression-risk to /reading/{id}/unified.
 # ────────────────────────────────────────────────────────────────────
 
+def _render_convergence_verdict(synth: Dict[str, Any]) -> str:
+    """One-sentence verdict at the top of the Convergence domain.
+
+    Reads the top entries from number / element / timing convergences
+    and composes a scannable verdict line. PR #20: answers "so what
+    actually converges most strongly here?" before the receipts.
+    """
+    if not synth or not isinstance(synth, dict):
+        return ""
+    parts = []
+    number_convs = synth.get("number_convergences") or []
+    if number_convs and isinstance(number_convs, list) and number_convs[0].get("number") is not None:
+        top = number_convs[0]
+        num = top["number"]
+        sys_ct = top.get("system_count", 0)
+        grp_ct = top.get("group_count", 0)
+        parts.append(
+            f'<span class="verdict-axis">Number</span> '
+            f'<strong>{_esc(str(num))}</strong> '
+            f'<span class="verdict-count">{sys_ct} systems · {grp_ct} cultural groups</span>'
+        )
+    elem_convs = synth.get("element_convergences") or []
+    if elem_convs and isinstance(elem_convs, list) and elem_convs[0].get("element"):
+        top = elem_convs[0]
+        elem = top["element"]
+        sys_ct = top.get("system_count", 0)
+        grp_ct = top.get("group_count", 0)
+        parts.append(
+            f'<span class="verdict-axis">Element</span> '
+            f'<strong>{_esc(elem)}</strong> '
+            f'<span class="verdict-count">{sys_ct} systems · {grp_ct} groups</span>'
+        )
+    time_convs = synth.get("timing_convergences") or []
+    if time_convs and isinstance(time_convs, list) and time_convs[0].get("number") is not None:
+        top = time_convs[0]
+        num = top["number"]
+        sys_ct = top.get("system_count", 0)
+        grp_ct = top.get("group_count", 0)
+        parts.append(
+            f'<span class="verdict-axis">Timing</span> '
+            f'<strong>{_esc(str(num))}</strong> '
+            f'<span class="verdict-count">{sys_ct} systems · {grp_ct} groups</span>'
+        )
+    if not parts:
+        return ""
+    return (
+        '<div class="convergence-verdict">'
+        '<div class="verdict-lead">These traditions converge most strongly on:</div>'
+        '<div class="verdict-axes">' + "".join(parts) + "</div>"
+        "</div>"
+    )
+
+
 def _visual_block_for_domain(domain_id: str, output: Dict[str, Any]) -> str:
     """Dispatch to the correct renderer for this domain, or empty string."""
     if domain_id == "numerology":
@@ -817,7 +1000,13 @@ def _visual_block_for_domain(domain_id: str, output: Dict[str, Any]) -> str:
         planet = extract_planetary_profile(output)
         return render_astro_animals(animal) + render_astro_planets(planet)
 
-    # convergence → no visual block; Monte Carlo IS the visual below
+    if domain_id == "convergence":
+        # PR #20: verdict sentence in place of a visual block.
+        # Answers "so what actually converges most strongly here?" before
+        # the user wades into the receipt rows.
+        synth = output.get("synthesis", {}) or {}
+        return _render_convergence_verdict(synth)
+
     return ""
 
 
@@ -890,16 +1079,17 @@ def render_domain_merged(
             )
 
     # PR #19: split into always-visible + overflow-in-disclosure.
-    # No hard cap anymore — every qualifying row is reachable, just
-    # not always pre-rendered on the page.
+    # No hard cap — every qualifying row is reachable, just not
+    # always pre-rendered on the page.
     if not rows:
-        body = '<div class="domain-empty">No signals to surface in this domain yet.</div>'
+        body_rows = '<div class="domain-empty">No signals to surface in this domain yet.</div>'
+        receipt_header_html = ""
     else:
         visible = rows[:visible_rows]
         hidden = rows[visible_rows:]
-        body = "".join(visible)
+        body_rows = "".join(visible)
         if hidden:
-            body += (
+            body_rows += (
                 f'<details class="more-rows">'
                 f'<summary><span class="chev">›</span>'
                 f'Show all {len(rows)} signals · +{len(hidden)} more'
@@ -907,6 +1097,14 @@ def render_domain_merged(
                 f'{"".join(hidden)}'
                 f'</details>'
             )
+        # PR #20: bridging label between the hero visual and the
+        # receipt rows. Explicit tier marker: the block above is the
+        # synthesized signal, the rows below are the per-tradition
+        # receipts that support it.
+        receipt_header_html = (
+            '<div class="receipt-header">How each tradition reads this</div>'
+            if visual_html.strip() else ""
+        )
 
     return f"""
     <section class="domain">
@@ -917,7 +1115,8 @@ def render_domain_merged(
         </div>
       </div>
       {visual_html}
-      {body}
+      {receipt_header_html}
+      {body_rows}
     </section>
     """
 

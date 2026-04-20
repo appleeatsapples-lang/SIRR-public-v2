@@ -864,7 +864,25 @@ async def reading_merged_page(order_id: str):
     readings_dir = READINGS_DIR
     merged_path = readings_dir / f"{order_id}_merged.html"
 
-    if not merged_path.exists():
+    # PR #20 (F7.3 from audit): stale HTML after redeploy. If the
+    # rendering code has been updated since the cached HTML was
+    # written, regenerate. Avoids customers-with-existing-readings
+    # being frozen on the version of the template that existed
+    # when they first viewed the page.
+    should_regen = not merged_path.exists()
+    if merged_path.exists():
+        try:
+            import merged_view as _mv_mod
+            code_mtime = os.path.getmtime(_mv_mod.__file__)
+            html_mtime = os.path.getmtime(merged_path)
+            if code_mtime > html_mtime:
+                should_regen = True
+        except Exception:
+            # mtime check is a best-effort optimization; never block
+            # serving the existing file because of a stat error.
+            pass
+
+    if should_regen:
         output_json = ORDERS_DIR / f"{order_id}_output.json"
         if output_json.exists():
             _generate_merged_view(str(output_json), order_id)
