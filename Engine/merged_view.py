@@ -345,6 +345,91 @@ VISUAL_CSS = """
   color: var(--accent);
   font-weight: 500;
 }
+
+/* ─── Disclosure wrappers (PR #19 density pass) ─── */
+
+details.more-rows {
+  border-bottom: 1px solid var(--line);
+}
+
+details.more-rows > summary {
+  cursor: pointer;
+  padding: 12px 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  list-style: none;
+  transition: color 160ms ease;
+}
+
+details.more-rows > summary::-webkit-details-marker { display: none; }
+details.more-rows > summary::marker { content: ''; }
+
+details.more-rows > summary:hover { color: var(--accent); }
+details.more-rows[open] > summary { color: var(--accent); padding-bottom: 6px; }
+
+details.more-rows > summary .chev {
+  display: inline-block;
+  margin-right: 8px;
+  transition: transform 160ms ease;
+}
+
+details.more-rows[open] > summary .chev { transform: rotate(90deg); }
+
+/* Footnote disclosures below the domain sections — Monte Carlo + Three Lenses */
+details.footnote {
+  margin: 48px 0 24px;
+  padding: 0;
+}
+
+details.footnote > summary {
+  cursor: pointer;
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  list-style: none;
+  text-align: center;
+  transition: color 160ms ease;
+}
+
+details.footnote > summary::-webkit-details-marker { display: none; }
+details.footnote > summary::marker { content: ''; }
+
+details.footnote > summary:hover { color: var(--accent); }
+details.footnote[open] > summary { color: var(--accent); border-bottom-color: var(--accent); }
+
+details.footnote > .footnote-body {
+  padding-top: 12px;
+}
+
+/* Coherence stat demoted to bottom-of-page badge */
+.coherence-bottom {
+  margin: 40px 0 16px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--muted-faint);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.coherence-bottom .score {
+  color: var(--accent);
+  font-family: 'Instrument Serif', serif;
+  font-size: 16px;
+  letter-spacing: 0;
+  text-transform: none;
+  margin: 0 4px;
+}
 """
 
 CSS = _UNIFIED_CSS + VISUAL_CSS
@@ -742,18 +827,17 @@ def render_domain_merged(
     output: Dict[str, Any],
     subject: str = "",
     subject_ar: str = "",
-    max_rows: int = 12,
+    visible_rows: int = 6,
 ) -> str:
     """Render one domain section: visual block + analytical table.
 
-    Mirrors unified_view.render_domain's row logic, but sandwiches the
-    domain-specific visual block between the header and the rows.
+    PR #19 density pass: first `visible_rows` rows show inline, any
+    additional rows are hidden behind a "Show all N signals" disclosure.
+    Cap lowered from 12 to 6 — with the visual block already carrying
+    substantial weight at the top of the section, 6 analytical rows is
+    where the reader still has capacity for the signal.
 
-    F2.2 fix applied inline: rows where the presentation-filter-resolved
-    value falls in HIDE_EXACT_VALUES produce None from _resolve_display,
-    so they're naturally suppressed here without a second-tier is_empty
-    check. Nothing for this function to do — the fix belongs in
-    html_reading.py (legacy), which is handled separately.
+    Mirrors unified_view.render_domain's row logic otherwise.
     """
     label = DOMAIN_LABELS[domain_id]
     subtitle = DOMAIN_SUBTITLES[domain_id]
@@ -804,13 +888,25 @@ def render_domain_merged(
                 f'<span class="caret-placeholder" aria-hidden="true"></span>'
                 f'</div>'
             )
-        if len(rows) >= max_rows:
-            break
 
+    # PR #19: split into always-visible + overflow-in-disclosure.
+    # No hard cap anymore — every qualifying row is reachable, just
+    # not always pre-rendered on the page.
     if not rows:
         body = '<div class="domain-empty">No signals to surface in this domain yet.</div>'
     else:
-        body = "".join(rows)
+        visible = rows[:visible_rows]
+        hidden = rows[visible_rows:]
+        body = "".join(visible)
+        if hidden:
+            body += (
+                f'<details class="more-rows">'
+                f'<summary><span class="chev">›</span>'
+                f'Show all {len(rows)} signals · +{len(hidden)} more'
+                f'</summary>'
+                f'{"".join(hidden)}'
+                f'</details>'
+            )
 
     return f"""
     <section class="domain">
@@ -854,26 +950,55 @@ def render_merged_html(output: Dict[str, Any]) -> str:
     subject = profile.get("subject", "") or ""
     subject_ar = profile.get("arabic", "") or ""
 
+    # PR #19 density pass: top of the page is the reading, not scaffolding.
+    # Removed from top flow: coherence stat, three civilizational lenses,
+    # evidence-intro paragraph. Those still render but now sit below the
+    # domain sections as disclosures.
     body_parts = [
         render_header(profile),
         render_portrait(output),
-        render_coherence(unified),
-        render_patterns(output),
-        render_theses(output),
         render_tension(unified),
-        '<section class="evidence-intro">'
-        '<div class="smallcap label">Underlying Signals</div>'
-        '<p>The reading above is assembled from many traditions computing in '
-        'parallel. Below is each tradition\'s own verdict, in its own '
-        'vocabulary — the receipts for the synthesis.</p>'
-        '<p>Open any row to see how that tradition reads the signal.</p>'
-        '</section>',
+        render_patterns(output),
     ]
+
+    # Four domain sections — each with visual block + up to 6 rows +
+    # overflow disclosure for the rest.
     for domain_id in DOMAIN_ORDER:
         body_parts.append(render_domain_merged(
             domain_id, results, output, subject=subject, subject_ar=subject_ar
         ))
-    body_parts.append(render_convergences(synth))
+
+    # Demoted footnotes. All three still render, but closed by default.
+    convergences_html = render_convergences(synth)
+    if convergences_html:
+        body_parts.append(
+            '<details class="footnote">'
+            '<summary>Monte Carlo Receipts &nbsp;·&nbsp; Evidence behind the convergence</summary>'
+            f'<div class="footnote-body">{convergences_html}</div>'
+            '</details>'
+        )
+
+    theses_html = render_theses(output)
+    if theses_html:
+        body_parts.append(
+            '<details class="footnote">'
+            '<summary>Three Civilizational Lenses &nbsp;·&nbsp; Islamic · Kabbalistic · Chinese</summary>'
+            f'<div class="footnote-body">{theses_html}</div>'
+            '</details>'
+        )
+
+    # Coherence score demoted to a single-line bottom badge — a QC metric,
+    # not part of the reading. render_coherence returns "" when score is
+    # absent, which naturally hides the badge too.
+    coh = unified.get("coherence", {}) or {}
+    score = coh.get("score")
+    label_c = coh.get("label")
+    if score and isinstance(score, (int, float)) and score > 0 and label_c and str(label_c).strip() not in ("", "—", "None"):
+        body_parts.append(
+            '<div class="coherence-bottom">'
+            f'Coherence <span class="score">{int(score)}</span> · {_esc(label_c)}'
+            '</div>'
+        )
 
     subject_title = _esc(subject).title()
 
