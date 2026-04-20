@@ -40,6 +40,12 @@ body{background:var(--bg);color:var(--text);font-family:'Newsreader','Instrument
     <p class="status-sub" style="margin-bottom:20px">Your reading is ready.</p>
     <a href="#" class="btn-reading" id="reading-link">Open Your Reading</a>
   </div>
+  <noscript>
+    <p class="status-sub" style="margin-top:20px;color:var(--amber-d);">
+      JavaScript is required to follow your reading as it generates.<br>
+      Please enable JS, or return to this page in a few minutes using the link from your email.
+    </p>
+  </noscript>
 </div>
 <script>
 // Success page polls for reading-generation completion.
@@ -48,22 +54,35 @@ body{background:var(--bg);color:var(--text);font-family:'Newsreader','Instrument
 //   ?token=<signed-JWT>   → new (§16.5, privacy-preserving)
 //   ?order_id=<id>        → legacy (grandfathered)
 //
-// When a token is present, poll /api/r/{token}/status (token-gated)
-// and redirect to /r/{token}/unified so the order_id stays out of the URL.
+// Polling has three termination modes:
+//   1. Reading ready  → redirect to /r/{token}/unified (or legacy path)
+//   2. Reading failed → show "something went wrong" message
+//   3. Max polling window reached → show "taking longer than expected"
+//   4. Repeated fetch failures → show "unable to reach server"
 //
-// When only order_id is present, fall back to /api/order-status/{id}
-// and redirect to the legacy /reading/{id} path.
+// Without (3) and (4) — the pre-audit behaviour — a silently-failed
+// background job or a network outage would leave the user watching the
+// spinner forever with no feedback.
+
+const POLL_INTERVAL_MS = 5000;
+const MAX_POLL_SECONDS = 15 * 60;  // 15 minutes
+const MAX_POLLS = Math.ceil((MAX_POLL_SECONDS * 1000) / POLL_INTERVAL_MS);
+const MAX_CONSECUTIVE_FAILURES = 3;
+
 const params = new URLSearchParams(location.search);
 const token = params.get('token');
 const orderId = params.get('order_id');
-const hasRef = !!(token || orderId);
 
-// Status endpoint + reading URL depend on which param is present
 const statusUrl = token
   ? '/api/r/' + encodeURIComponent(token) + '/status'
   : (orderId ? '/api/order-status/' + encodeURIComponent(orderId) : null);
 
-// Display-only header (never shows token — it's a capability, not an identifier)
+const readingUrl = token
+  ? '/r/' + encodeURIComponent(token) + '/unified'
+  : (orderId ? '/reading/' + encodeURIComponent(orderId) + '/unified' : null);
+
+// Display-only: show order_id to the user if they arrived via legacy URL.
+// Never show token text — it is a capability, not an identifier.
 if (orderId) {
   document.getElementById('order-id-display').textContent = 'Order: ' + orderId;
 }
@@ -93,46 +112,94 @@ const msgTimer = setInterval(() => {
   if (msgIdx >= msgs.length) clearInterval(msgTimer);
 }, 800);
 
-// Reading URL to redirect to when status becomes 'ready'.
-// Prefer token-gated /r/{token}/unified so no order_id leaks into the URL.
-// Fall back to legacy /reading/{order_id}/unified when only order_id is present.
-// If neither is present, the polling function exits and the user sees the
-// spinner indefinitely — but that state is unreachable from any real checkout.
-const readingUrl = token
-  ? '/r/' + encodeURIComponent(token) + '/unified'
-  : (orderId ? '/reading/' + encodeURIComponent(orderId) + '/unified' : null);
+let pollCount = 0;
+let consecutiveFailures = 0;
+let terminated = false;
+
+function stopAllTimers() {
+  terminated = true;
+  clearInterval(progressTimer);
+  clearInterval(msgTimer);
+  clearInterval(pollTimer);
+}
+
+function showReady(target) {
+  stopAllTimers();
+  bar.style.width = '100%';
+  document.getElementById('spinner').style.display = 'none';
+  document.getElementById('status-title').textContent = 'Your reading is ready';
+  document.getElementById('ready-msg').style.display = 'block';
+  document.getElementById('reading-link').href = target;
+  setTimeout(() => { window.location.href = target; }, 2000);
+}
+
+function showFailed() {
+  stopAllTimers();
+  document.getElementById('spinner').style.display = 'none';
+  document.getElementById('status-title').textContent = 'Something went wrong';
+  sub.textContent = 'Please contact support with your order ID and we will follow up.';
+}
+
+function showTimedOut() {
+  stopAllTimers();
+  document.getElementById('spinner').style.display = 'none';
+  document.getElementById('status-title').textContent = 'This is taking longer than expected';
+  sub.innerHTML = 'Your reading may still be generating. Please contact support<br>with your order ID and we will follow up.';
+}
+
+function showUnreachable() {
+  stopAllTimers();
+  document.getElementById('spinner').style.display = 'none';
+  document.getElementById('status-title').textContent = 'Unable to reach the server';
+  sub.innerHTML = 'Please refresh the page. If this keeps happening,<br>contact support with your order ID.';
+}
 
 async function checkStatus() {
-  if (!statusUrl) return;
+  if (terminated || !statusUrl) return;
+
+  pollCount++;
+  if (pollCount > MAX_POLLS) { showTimedOut(); return; }
+
+  let res;
   try {
-    const res = await fetch(statusUrl);
-    if (!res.ok) return;
-    const d = await res.json();
-    if (d.status === 'ready' && (d.reading_url || readingUrl)) {
-      clearInterval(progressTimer);
-      clearInterval(msgTimer);
-      clearInterval(pollTimer);
-      bar.style.width = '100%';
-      document.getElementById('spinner').style.display = 'none';
-      document.getElementById('status-title').textContent = 'Your reading is ready';
-      document.getElementById('ready-msg').style.display = 'block';
-      // Prefer token-based URL when available (§16.5 — keeps order_id out of address bar).
-      // The server's d.reading_url is the legacy /reading/{order_id} path and only
-      // used as a fallback if no token was in the URL.
-      const target = readingUrl || d.reading_url;
-      document.getElementById('reading-link').href = target;
-      setTimeout(() => { window.location.href = target; }, 2000);
-    }
-    if (d.status === 'failed') {
-      clearInterval(progressTimer); clearInterval(msgTimer); clearInterval(pollTimer);
-      document.getElementById('status-title').textContent = 'Something went wrong';
-      sub.textContent = 'Please contact support with your order ID.';
-      document.getElementById('spinner').style.display = 'none';
-    }
-  } catch(_) {}
+    res = await fetch(statusUrl);
+  } catch (_) {
+    consecutiveFailures++;
+    if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) showUnreachable();
+    return;
+  }
+
+  if (!res.ok) {
+    consecutiveFailures++;
+    if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) showUnreachable();
+    return;
+  }
+
+  let d;
+  try {
+    d = await res.json();
+  } catch (_) {
+    consecutiveFailures++;
+    if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) showUnreachable();
+    return;
+  }
+
+  consecutiveFailures = 0;
+
+  if (d.status === 'ready' && (d.reading_url || readingUrl)) {
+    showReady(readingUrl || d.reading_url);
+    return;
+  }
+  if (d.status === 'failed') {
+    showFailed();
+    return;
+  }
+  // Otherwise: still processing, keep polling.
 }
-const pollTimer = setInterval(checkStatus, 5000);
+
+const pollTimer = setInterval(checkStatus, POLL_INTERVAL_MS);
 checkStatus();
+
 </script>
 </body>
 </html>
