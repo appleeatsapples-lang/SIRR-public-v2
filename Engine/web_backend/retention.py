@@ -42,9 +42,10 @@ RETENTION_DAYS = 30
 RETENTION_SECONDS = RETENTION_DAYS * 24 * 60 * 60
 
 BACKEND_DIR = Path(__file__).parent
-ORDERS_DIR = BACKEND_DIR / "orders"
-READINGS_DIR = BACKEND_DIR / "readings"
-DELETION_QUEUE = BACKEND_DIR / "deletion_queue.txt"
+# Centralized data paths (see paths.py) — honors SIRR_DATA_DIR env var so
+# production can mount a Railway volume and have all user data persist
+# across deploys.
+from paths import ORDERS_DIR, READINGS_DIR, DELETION_QUEUE
 
 DRY_RUN = os.environ.get("SIRR_RETENTION_DRY_RUN", "").lower() in ("1", "true", "yes")
 

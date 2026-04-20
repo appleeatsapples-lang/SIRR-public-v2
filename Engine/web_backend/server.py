@@ -38,6 +38,8 @@ from errors import (
     render_page, render_404, render_401, render_400, render_500,
     render_reading_processing, render_reading_pending,
 )
+# Centralized data paths — honors SIRR_DATA_DIR for Railway volume mount
+from paths import ORDERS_DIR, READINGS_DIR, DELETION_QUEUE
 
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
@@ -376,8 +378,8 @@ def _serve_tier2_html(path: Path, order_id: str):
 def _encrypt_tier2_outputs(order_id: str) -> int:
     """Encrypt an order's Tier 2 output files in place. Idempotent.
     Called at end of a successful engine job. Returns count encrypted."""
-    readings_dir = Path(__file__).parent / "readings"
-    orders_dir = Path(__file__).parent / "orders"
+    readings_dir = READINGS_DIR
+    orders_dir = ORDERS_DIR
     targets = [
         orders_dir / f"{order_id}_output.json",
         readings_dir / f"{order_id}.html",
@@ -722,8 +724,8 @@ async def request_deletion(req: DeleteRequest):
             raise HTTPException(401, "email does not match order")
 
     # Delete Tier 2 artifacts: reading HTML, unified HTML, output JSON
-    readings_dir = Path(__file__).parent / "readings"
-    orders_dir = Path(__file__).parent / "orders"
+    readings_dir = READINGS_DIR
+    orders_dir = ORDERS_DIR
     deleted_files = []
     for path in [
         readings_dir / f"{order_id}.html",
@@ -762,14 +764,14 @@ async def request_deletion(req: DeleteRequest):
 
 def _queue_tier3_deletion(order_id: str) -> None:
     """Append order_id to the Tier 3 deletion queue for async purging."""
-    queue_path = Path(__file__).parent / "deletion_queue.txt"
+    queue_path = DELETION_QUEUE
     with open(queue_path, "a") as f:
         f.write(f"{order_id}\n")
 
 
 @app.get("/reading/{order_id}")
 async def reading_page(order_id: str):
-    reading_path = Path(__file__).parent / "readings" / f"{order_id}.html"
+    reading_path = READINGS_DIR / f"{order_id}.html"
     if not reading_path.exists():
         order = get_order(order_id)
         if not order:
@@ -791,12 +793,12 @@ async def reading_unified_page(order_id: str):
     from the order's output JSON (lazy fallback for orders completed before
     the unified view was deployed).
     """
-    readings_dir = Path(__file__).parent / "readings"
+    readings_dir = READINGS_DIR
     unified_path = readings_dir / f"{order_id}_unified.html"
 
     if not unified_path.exists():
         # Lazy generation from existing output JSON (for legacy orders)
-        output_json = Path(__file__).parent / "orders" / f"{order_id}_output.json"
+        output_json = ORDERS_DIR / f"{order_id}_output.json"
         if output_json.exists():
             _generate_unified_view(str(output_json), order_id)
 
@@ -1008,8 +1010,8 @@ def _generate_unified_view(output_json_path: str, order_id: str) -> Optional[str
         output["results"] = filtered
         output["view"] = "unified"
 
-        readings_dir = Path(__file__).parent / "readings"
-        readings_dir.mkdir(exist_ok=True)
+        readings_dir = READINGS_DIR
+        readings_dir.mkdir(parents=True, exist_ok=True)
         unified_path = readings_dir / f"{order_id}_unified.html"
         unified_path.write_text(render_unified_html(output), encoding="utf-8")
         return f"/reading/{order_id}/unified"
@@ -1045,7 +1047,7 @@ def _generate_reading_background(order_id: str):
             json.dump(profile, f)
             fixture_path = f.name
 
-        output_path = str(Path(__file__).parent / "orders" / f"{order_id}_output.json")
+        output_path = str(ORDERS_DIR / f"{order_id}_output.json")
 
         # Run engine
         result = subprocess.run(
@@ -1079,8 +1081,8 @@ def _generate_reading_background(order_id: str):
                 pass  # Fall back to paragraph rendering
 
             # Generate HTML
-            readings_dir = Path(__file__).parent / "readings"
-            readings_dir.mkdir(exist_ok=True)
+            readings_dir = READINGS_DIR
+            readings_dir.mkdir(parents=True, exist_ok=True)
             html_output_path = str(readings_dir / f"{order_id}.html")
             generate_html_reading(output_path, reading_md_path, html_output_path,
                                   panels_data=panels_data)

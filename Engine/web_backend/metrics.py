@@ -25,10 +25,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
-BACKEND_DIR = Path(__file__).parent
-ORDERS_DIR = BACKEND_DIR / "orders"
-READINGS_DIR = BACKEND_DIR / "readings"
-DELETION_QUEUE = BACKEND_DIR / "deletion_queue.txt"
+# Centralized data paths — see paths.py. Re-exported at module level so
+# tests can monkey-patch (e.g., metrics.ORDERS_DIR = tmp / "orders") for
+# isolation, which is the existing test pattern.
+from paths import ORDERS_DIR, READINGS_DIR, DELETION_QUEUE
 
 MIN_BUCKET_SIZE = 5
 

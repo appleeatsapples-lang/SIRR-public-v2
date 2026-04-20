@@ -4,8 +4,8 @@ import json, uuid, threading, hashlib, re
 from pathlib import Path
 from datetime import datetime
 
-ORDERS_DIR = Path(__file__).parent / "orders"
-ORDERS_DIR.mkdir(exist_ok=True)
+# Centralized data path — honors SIRR_DATA_DIR env var for volume mounts
+from paths import ORDERS_DIR
 _lock = threading.Lock()
 
 
