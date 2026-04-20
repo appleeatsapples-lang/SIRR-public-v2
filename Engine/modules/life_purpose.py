@@ -10,6 +10,9 @@ from sirr_core.utils import reduce_number
 
 def compute(profile: InputProfile, constants: dict) -> SystemResult:
     day = profile.dob.day
+    # Birth-day reduction preserves 11 and 22 per Millman's documented
+    # methodology (notation like "11/2", "22/4"). 33 is typically not
+    # surfaced at the birth-day level in this system.
     reduced = reduce_number(day, keep_masters=(11, 22))
 
     # Millman compound: keep 2-digit form before final reduction
@@ -27,6 +30,10 @@ def compute(profile: InputProfile, constants: dict) -> SystemResult:
             "birth_day_reduced": reduced,
             "millman_raw": millman_sum,
             "millman_compound": millman_lp,
+            # millman_final is the single-digit COMPANION to millman_compound
+            # (which already preserves the 2-digit form). Intentionally
+            # collapsed for downstream single-digit consumers — not a
+            # master-number regression; the full compound is still present.
             "millman_final": reduce_number(millman_sum, keep_masters=()),
         },
         interpretation=None, constants_version=constants["version"],

@@ -4,6 +4,12 @@ from sirr_core.types import InputProfile, SystemResult
 from sirr_core.utils import reduce_number
 
 def compute(profile: InputProfile, constants: dict) -> SystemResult:
+    # Challenge cycle inputs: month, day, year reduced to single digits.
+    # Juno Jordan / Florence Campbell methodology operates on 1-9 components
+    # so the resulting challenges (computed as absolute differences) are
+    # always 0-9. Master numbers (11, 22, 33) do NOT appear in challenge
+    # analysis under this tradition — they're an LP/Expression concept.
+    # Hence keep_masters=() here is intentional, not a regression.
     m = reduce_number(profile.dob.month, keep_masters=())
     d = reduce_number(profile.dob.day, keep_masters=())
     y = reduce_number(profile.dob.year, keep_masters=())

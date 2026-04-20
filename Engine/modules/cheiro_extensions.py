@@ -95,17 +95,26 @@ def compute(profile: InputProfile, constants: dict, **kwargs) -> SystemResult:
     # ── Compound Number ──
     chal_total = _chaldean_total(profile.subject)
     compound = _reduce_to_range(chal_total, 10, 52) if chal_total >= 10 else chal_total
+    # compound_root is the single-digit COMPANION to `compound`. `compound`
+    # already preserves Cheiro's characteristic 10-52 range (which includes
+    # 11/22/33 implicitly). This companion is intentionally collapsed to 1-9
+    # for table lookup — not a master-number regression.
     compound_root = reduce_number(compound, keep_masters=())
 
     meaning = COMPOUND_MEANINGS.get(compound, {"name": "Unknown", "nature": "unknown", "keywords": ""})
 
     # ── Color Affinity ──
+    # Life Path is the master-number-sensitive number in Pythagorean numerology.
+    # Cheiro explicitly preserved 11/22/33 at the LP level. If the profile
+    # doesn't carry a pre-computed life_path, compute one that respects masters.
     lp = profile.life_path or reduce_number(
-        reduce_number(profile.dob.month, keep_masters=()) +
-        reduce_number(profile.dob.day, keep_masters=()) +
-        reduce_number(sum(int(x) for x in str(profile.dob.year)), keep_masters=()),
-        keep_masters=()
+        reduce_number(profile.dob.month, keep_masters=(11, 22, 33)) +
+        reduce_number(profile.dob.day, keep_masters=(11, 22, 33)) +
+        reduce_number(sum(int(x) for x in str(profile.dob.year)), keep_masters=(11, 22, 33)),
+        keep_masters=(11, 22, 33)
     )
+    # Color lookup table is indexed 1-9, so collapse master LP here — again
+    # a companion value, not a master-number-preservation regression.
     color_key = lp if 1 <= lp <= 9 else reduce_number(lp, keep_masters=())
     colors = COLOR_TABLE.get(color_key, {"primary": [], "secondary": [], "avoid": []})
 
