@@ -43,6 +43,7 @@ from paths import ORDERS_DIR, READINGS_DIR, DELETION_QUEUE
 # Rate limiting
 from middleware import limiter, rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from security_headers import SecurityHeadersMiddleware
 
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
@@ -83,6 +84,9 @@ async def lifespan(_app):
 
 
 app = FastAPI(title="SIRR Engine", version="2.0", lifespan=lifespan)
+
+# Security headers on every response (§16 hardening)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Rate limiter wire-in (see middleware.py). Adds limiter to app state
 # and registers the 429 handler that returns styled HTML for browsers
@@ -994,11 +998,16 @@ async def lemonsqueezy_webhook(request: Request):
     import hashlib, hmac
     payload = await request.body()
 
-    if LS_WEBHOOK_SECRET:
-        sig = request.headers.get("x-signature", "")
-        digest = hmac.new(LS_WEBHOOK_SECRET.encode(), payload, hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(sig, digest):
-            raise HTTPException(400, "Invalid signature")
+    # Fail-closed: an unset secret MUST NOT skip signature verification.
+    # Without this guard, any attacker with a guessable order_id could
+    # mark orders as paid and trigger engine runs (Anthropic API burn).
+    if not LS_WEBHOOK_SECRET:
+        raise HTTPException(503, "webhook not configured")
+
+    sig = request.headers.get("x-signature", "")
+    digest = hmac.new(LS_WEBHOOK_SECRET.encode(), payload, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(sig, digest):
+        raise HTTPException(400, "Invalid signature")
 
     data = json.loads(payload)
     event_name = data.get("meta", {}).get("event_name", "")
