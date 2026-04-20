@@ -65,7 +65,21 @@ from reading_generator import generate_reading, extract_reading_context, generat
 from html_reading import generate_html as generate_html_reading
 from unified_synthesis import compute_unified_synthesis
 
-app = FastAPI(title="SIRR Engine", version="2.0")
+# ── FastAPI lifespan — starts/stops the in-process retention scheduler ──
+from contextlib import asynccontextmanager
+import scheduler as _scheduler
+
+
+@asynccontextmanager
+async def lifespan(_app):
+    # Startup
+    _scheduler.start()
+    yield
+    # Shutdown
+    await _scheduler.stop()
+
+
+app = FastAPI(title="SIRR Engine", version="2.0", lifespan=lifespan)
 
 
 # ── Router wire-in ────────────────────────────────────────────────────────

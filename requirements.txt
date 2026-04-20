@@ -28,3 +28,4 @@ cryptography
 
 # Testing (needed in CI; prod containers will load but not use)
 pytest
+pytest-asyncio
