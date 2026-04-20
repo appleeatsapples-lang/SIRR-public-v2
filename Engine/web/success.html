@@ -55,7 +55,7 @@ body{background:var(--bg);color:var(--text);font-family:'Newsreader','Instrument
 //   ?order_id=<id>        → legacy (grandfathered)
 //
 // Polling has three termination modes:
-//   1. Reading ready  → redirect to /r/{token}/unified (or legacy path)
+//   1. Reading ready  → redirect to /r/{token}/merged (or legacy path)
 //   2. Reading failed → show "something went wrong" message
 //   3. Max polling window reached → show "taking longer than expected"
 //   4. Repeated fetch failures → show "unable to reach server"
@@ -78,8 +78,8 @@ const statusUrl = token
   : (orderId ? '/api/order-status/' + encodeURIComponent(orderId) : null);
 
 const readingUrl = token
-  ? '/r/' + encodeURIComponent(token) + '/unified'
-  : (orderId ? '/reading/' + encodeURIComponent(orderId) + '/unified' : null);
+  ? '/r/' + encodeURIComponent(token) + '/merged'
+  : (orderId ? '/reading/' + encodeURIComponent(orderId) + '/merged' : null);
 
 // Display-only: show order_id to the user if they arrived via legacy URL.
 // Never show token text — it is a capability, not an identifier.

@@ -80,3 +80,20 @@ def test_order_id_never_displayed_as_token():
     # Token is never assigned to textContent
     assert ".textContent = 'Order: ' + token" not in html
     assert ".textContent = token" not in html
+
+
+def test_default_redirect_lands_on_merged_view():
+    """PR #21: the success-page default redirect must land new customers
+    on /r/{token}/merged (and /reading/{order_id}/merged for legacy
+    order_id URLs). The merged view is the product's primary reader
+    surface; unified stays accessible but isn't the landing page.
+
+    Regression guard: if someone flips this back to /unified by accident,
+    CI catches it here."""
+    html = _html()
+    # New default URL composition
+    assert "'/r/' + encodeURIComponent(token) + '/merged'" in html
+    assert "'/reading/' + encodeURIComponent(orderId) + '/merged'" in html
+    # Old defaults must be gone — no drift back
+    assert "'/r/' + encodeURIComponent(token) + '/unified'" not in html
+    assert "'/reading/' + encodeURIComponent(orderId) + '/unified'" not in html
