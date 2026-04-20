@@ -42,9 +42,31 @@ body{background:var(--bg);color:var(--text);font-family:'Newsreader','Instrument
   </div>
 </div>
 <script>
+// Success page polls for reading-generation completion.
+//
+// Supports both URL shapes:
+//   ?token=<signed-JWT>   → new (§16.5, privacy-preserving)
+//   ?order_id=<id>        → legacy (grandfathered)
+//
+// When a token is present, poll /api/r/{token}/status (token-gated)
+// and redirect to /r/{token}/unified so the order_id stays out of the URL.
+//
+// When only order_id is present, fall back to /api/order-status/{id}
+// and redirect to the legacy /reading/{id} path.
 const params = new URLSearchParams(location.search);
+const token = params.get('token');
 const orderId = params.get('order_id');
-if (orderId) document.getElementById('order-id-display').textContent = 'Order: ' + orderId;
+const hasRef = !!(token || orderId);
+
+// Status endpoint + reading URL depend on which param is present
+const statusUrl = token
+  ? '/api/r/' + encodeURIComponent(token) + '/status'
+  : (orderId ? '/api/order-status/' + encodeURIComponent(orderId) : null);
+
+// Display-only header (never shows token — it's a capability, not an identifier)
+if (orderId) {
+  document.getElementById('order-id-display').textContent = 'Order: ' + orderId;
+}
 
 let progress = 5;
 const bar = document.getElementById('progress-bar');
@@ -71,13 +93,22 @@ const msgTimer = setInterval(() => {
   if (msgIdx >= msgs.length) clearInterval(msgTimer);
 }, 800);
 
+// Reading URL to redirect to when status becomes 'ready'.
+// Prefer token-gated /r/{token}/unified so no order_id leaks into the URL.
+// Fall back to legacy /reading/{order_id}/unified when only order_id is present.
+// If neither is present, the polling function exits and the user sees the
+// spinner indefinitely — but that state is unreachable from any real checkout.
+const readingUrl = token
+  ? '/r/' + encodeURIComponent(token) + '/unified'
+  : (orderId ? '/reading/' + encodeURIComponent(orderId) + '/unified' : null);
+
 async function checkStatus() {
-  if (!orderId) return;
+  if (!statusUrl) return;
   try {
-    const res = await fetch('/api/order-status/' + orderId);
+    const res = await fetch(statusUrl);
     if (!res.ok) return;
     const d = await res.json();
-    if (d.status === 'ready' && d.reading_url) {
+    if (d.status === 'ready' && (d.reading_url || readingUrl)) {
       clearInterval(progressTimer);
       clearInterval(msgTimer);
       clearInterval(pollTimer);
@@ -85,8 +116,12 @@ async function checkStatus() {
       document.getElementById('spinner').style.display = 'none';
       document.getElementById('status-title').textContent = 'Your reading is ready';
       document.getElementById('ready-msg').style.display = 'block';
-      document.getElementById('reading-link').href = d.reading_url;
-      setTimeout(() => { window.location.href = d.reading_url; }, 2000);
+      // Prefer token-based URL when available (§16.5 — keeps order_id out of address bar).
+      // The server's d.reading_url is the legacy /reading/{order_id} path and only
+      // used as a fallback if no token was in the URL.
+      const target = readingUrl || d.reading_url;
+      document.getElementById('reading-link').href = target;
+      setTimeout(() => { window.location.href = target; }, 2000);
     }
     if (d.status === 'failed') {
       clearInterval(progressTimer); clearInterval(msgTimer); clearInterval(pollTimer);
