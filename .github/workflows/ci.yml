@@ -57,6 +57,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Verify access-log discipline (P2D)
+        run: |
+          # railway.toml takes precedence over Procfile on Railway, but
+          # Procfile becomes active if railway.toml is ever removed.
+          # Check both for the correct uvicorn flag syntax. The flag is
+          # --no-access-log (boolean toggle), NOT --access-log false
+          # (which is invalid uvicorn syntax and crashes the container).
+          for f in railway.toml Procfile; do
+            grep -q -- '--no-access-log' "$f" \
+              || { echo "✗ $f is missing --no-access-log (P2D §16.5)"; exit 1; }
+            grep -q -- '--access-log false' "$f" \
+              && { echo "✗ $f contains invalid syntax '--access-log false' (use --no-access-log)"; exit 1; }
+            echo "✓ $f has --no-access-log"
+          done
+
       - name: Boot uvicorn + curl the endpoints a real user hits
         working-directory: Engine/web_backend
         env:
