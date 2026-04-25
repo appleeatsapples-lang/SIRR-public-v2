@@ -57,6 +57,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Verify railway.toml access-log discipline (P2D)
+        run: |
+          # railway.toml takes precedence over Procfile on Railway. The
+          # P2D privacy fix requires --access-log false in the deployed
+          # uvicorn invocation. If someone edits railway.toml without
+          # carrying the flag forward, this fails CI.
+          grep -q -- '--access-log false' railway.toml \
+            || { echo "✗ railway.toml startCommand is missing --access-log false (P2D §16.5)"; exit 1; }
+          echo "✓ railway.toml startCommand has --access-log false"
+
       - name: Boot uvicorn + curl the endpoints a real user hits
         working-directory: Engine/web_backend
         env:
