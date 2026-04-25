@@ -405,16 +405,22 @@ def test_tension_pull_quote_decoration_stripped(synthetic_output):
 
 
 def test_server_merged_route_has_mtime_regen_logic():
-    """The /reading/{id}/merged route must include the mtime-based
+    """The merged-view serve helper must include the mtime-based
     regen check (F7.3 fix) so that cached HTML is refreshed when the
-    rendering code has been updated."""
+    rendering code has been updated.
+
+    P2D split the public /reading/{id}/merged route into a 410 shim and
+    moved the actual serve logic to _serve_reading_merged_by_id, which
+    is the helper /r/{token}/merged calls. That's where the regen check
+    lives now.
+    """
     import importlib.util
     spec = importlib.util.find_spec("server")
     server = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(server)
 
     import inspect
-    src = inspect.getsource(server.reading_merged_page)
+    src = inspect.getsource(server._serve_reading_merged_by_id)
     # Must check code mtime vs html mtime
     assert "code_mtime" in src
     assert "html_mtime" in src

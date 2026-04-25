@@ -1204,7 +1204,7 @@ def system_run(profile_path: str = None, natal_chart_data: dict = None, output_p
 
     except Exception as e:
         # Never let semantic layer crash the main engine run
-        out["semantic_reading"] = {"error": str(e), "status": "PIPELINE_ERROR"}
+        out["semantic_reading"] = {"error": type(e).__name__, "status": "PIPELINE_ERROR"}
     # ── End Semantic Reading Layer ──────────────────────────────────────────
 
     # ── Psychological Translation Layer ────────────────────────────────────
@@ -1212,7 +1212,7 @@ def system_run(profile_path: str = None, natal_chart_data: dict = None, output_p
         try:
             out["psychological_mirror"] = build_psychological_mirror(out["semantic_reading"])
         except Exception as e:
-            out["psychological_mirror"] = {"error": str(e), "status": "TRANSLATION_ERROR"}
+            out["psychological_mirror"] = {"error": type(e).__name__, "status": "TRANSLATION_ERROR"}
     # ── End Psychological Translation Layer ────────────────────────────────
 
     # ── Psychological Construct Profile ────────────────────────────────────
@@ -1220,7 +1220,7 @@ def system_run(profile_path: str = None, natal_chart_data: dict = None, output_p
         try:
             out["psychological_profile"] = build_psychological_profile(out)
         except Exception as e:
-            out["psychological_profile"] = {"error": str(e), "status": "PSYCH_LAYER_ERROR"}
+            out["psychological_profile"] = {"error": type(e).__name__, "status": "PSYCH_LAYER_ERROR"}
     # ── End Psychological Construct Profile ────────────────────────────────
 
     # Write JSON

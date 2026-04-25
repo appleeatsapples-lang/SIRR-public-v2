@@ -116,10 +116,15 @@ jobs:
           echo "→ /api/internal/metrics with auth → 200"
           test "$(curl -so /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/internal/metrics -H 'X-Internal-Secret: ci-smoke-secret')" = "200"
 
-          # Styled error page branch
-          echo "→ GET /reading/nonexistent (browser accept) → 404 styled HTML"
+          # P2D — /reading/{order_id} is now permanently deprecated; serves
+          # a styled 410 Gone page that points users at their signed link.
+          echo "→ GET /reading/nonexistent (browser accept) → 410 styled HTML"
+          status=$(curl -so /dev/null -w '%{http_code}' http://127.0.0.1:8000/reading/nonexistent -H 'Accept: text/html')
+          test "$status" = "410" || (echo "✗ expected 410 Gone, got $status"; exit 1)
           body=$(curl -s http://127.0.0.1:8000/reading/nonexistent -H 'Accept: text/html')
-          echo "$body" | grep -q "Not found" || (echo "✗ 404 page missing expected content"; echo "$body" | head -20; exit 1)
+          echo "$body" | grep -q "retired" || (echo "✗ 410 page missing 'retired' marker"; echo "$body" | head -20; exit 1)
+          # And it must not echo the order id back into the page body
+          echo "$body" | grep -q "nonexistent" && (echo "✗ 410 page leaked the order_id back"; exit 1) || true
 
           # Tear down
           kill $SERVER_PID

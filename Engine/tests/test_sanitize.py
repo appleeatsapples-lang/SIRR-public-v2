@@ -109,3 +109,86 @@ def test_path_with_spaces_not_overredacted():
     line = 'File "/Users/muhab/my project/code.py"'
     out = sanitize_line(line)
     assert "/Users/muhab/my project/code.py" in out
+
+
+def test_runner_error_field_uses_class_name_only():
+    """The runner.py semantic/psych error fields must store only the
+    exception class name — never str(e), which could carry user input."""
+
+    class FakePipelineError(ValueError):
+        pass
+
+    err = FakePipelineError("leaked user input: muhab-akif-23sep1996")
+    # Simulate the runner.py error-field pattern
+    out = {"error": type(err).__name__, "status": "PIPELINE_ERROR"}
+    assert out["error"] == "FakePipelineError"
+    assert "muhab-akif" not in out["error"]
+    assert "23sep1996" not in out["error"]
+
+
+def test_server_exception_prints_route_through_sanitize_exception():
+    """The 3 exception prints in server.py (_generate_unified_view,
+    _generate_merged_view, _generate_reading_background legacy block)
+    must wrap the exception in sanitize_exception(e) before stderr.
+    Source-level check — stable across pytest isolation modes."""
+    import re
+    server_path = os.path.join(
+        os.path.dirname(__file__), "..", "web_backend", "server.py"
+    )
+    src = open(server_path).read()
+
+    # Each of these tag prefixes must appear with sanitize_exception(e) in
+    # the same f-string, not bare {e}.
+    tags = ["[unified_view]", "[merged_view]", "[legacy_reading]"]
+    for tag in tags:
+        # Find every print line containing the tag
+        pattern = re.compile(
+            r'print\(f"\[' + re.escape(tag[1:-1]) + r'\][^"]*"',
+            re.MULTILINE,
+        )
+        matches = pattern.findall(src)
+        assert matches, f"no print line found for tag {tag}"
+        for m in matches:
+            assert "sanitize_exception(e)" in m, (
+                f"{tag} print must route through sanitize_exception(e): {m!r}"
+            )
+            # Negative: must not print bare {e} (without sanitize)
+            assert "{e}" not in m or "{sanitize_exception(e)}" in m, (
+                f"{tag} print still contains bare {{e}}: {m!r}"
+            )
+
+
+def test_runner_error_fields_use_type_name_not_str():
+    """The 3 error-dict assignments in runner.py (semantic_reading,
+    psychological_mirror, psychological_profile) must use
+    type(e).__name__, not str(e). Source-level check."""
+    import re
+    runner_path = os.path.join(
+        os.path.dirname(__file__), "..", "runner.py"
+    )
+    src = open(runner_path).read()
+
+    # Each layer's error-dict assignment must use type(e).__name__
+    pattern = re.compile(
+        r'out\["(semantic_reading|psychological_mirror|psychological_profile)"\]\s*=\s*\{[^}]*\}',
+        re.MULTILINE,
+    )
+    matches = pattern.findall(src)
+    # We expect the 3 error-dict assignments (may also match the happy-path
+    # assignments — that's fine, the check below only asserts there are no
+    # str(e) uses in the *error* dicts).
+    err_pattern = re.compile(
+        r'out\["(?:semantic_reading|psychological_mirror|psychological_profile)"\]\s*=\s*\{"error":\s*([^,]+),',
+        re.MULTILINE,
+    )
+    err_matches = err_pattern.findall(src)
+    assert len(err_matches) == 3, (
+        f"expected 3 error-dict assignments, found {len(err_matches)}: {err_matches}"
+    )
+    for expr in err_matches:
+        assert "type(e).__name__" in expr, (
+            f"runner.py error field must use type(e).__name__, got: {expr!r}"
+        )
+        assert "str(e)" not in expr, (
+            f"runner.py error field still uses str(e): {expr!r}"
+        )

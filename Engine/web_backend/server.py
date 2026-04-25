@@ -681,30 +681,33 @@ WEB_DIR = ENGINE / "web"
 # ── §16.5 — Token-based reading access (preferred; no PII in URLs) ─────────
 
 def _resolve_token_or_order_id(token_or_id: str) -> str:
-    """Accept either a signed token (new canonical) or a raw order_id
-    (grandfathered). Returns the resolved order_id or raises 404."""
+    """Verify a signed token and return the embedded order_id.
+
+    §16.5: raw order IDs are no longer accepted on the /r/ path. Only
+    HMAC-signed tokens minted by tokens.mint_token() are valid. The
+    legacy grandfather fallback was removed in P2D.
+
+    Name retained for call-site compatibility; semantics are now
+    token-only.
+    """
     resolved = try_verify_token(token_or_id)
     if resolved:
         return resolved
-    # Grandfather: still accept raw order_id from legacy URLs
-    order = get_order(token_or_id)
-    if not order:
-        raise HTTPException(404, "Reading not found")
-    return token_or_id
+    raise HTTPException(404, "Reading not found")
 
 
 @app.get("/r/{token}")
 async def reading_by_token(token: str):
     """Token-gated reading page. §16.5 — replaces /reading/{order_id} pattern."""
     order_id = _resolve_token_or_order_id(token)
-    return await reading_page(order_id)
+    return await _serve_reading_by_id(order_id)
 
 
 @app.get("/r/{token}/unified")
 async def reading_unified_by_token(token: str):
     """Token-gated unified view. §16.5 — replaces /reading/{order_id}/unified."""
     order_id = _resolve_token_or_order_id(token)
-    return await reading_unified_page(order_id)
+    return await _serve_reading_unified_by_id(order_id)
 
 
 @app.get("/r/{token}/merged")
@@ -712,7 +715,7 @@ async def reading_merged_by_token(token: str):
     """Token-gated merged view. PR #18 — combines unified architecture
     with legacy visual vocabulary at each domain header."""
     order_id = _resolve_token_or_order_id(token)
-    return await reading_merged_page(order_id)
+    return await _serve_reading_merged_by_id(order_id)
 
 
 @app.get("/api/r/{token}/status")
@@ -808,8 +811,35 @@ def _queue_tier3_deletion(order_id: str) -> None:
         f.write(f"{order_id}\n")
 
 
-@app.get("/reading/{order_id}")
-async def reading_page(order_id: str):
+def _gone_410_response() -> HTMLResponse:
+    """Styled 410 Gone for deprecated raw-order-id reading paths.
+
+    §16.5: order IDs must not appear in URLs. These paths are retained
+    only to return a helpful message pointing the user at their signed
+    link from checkout email. No order lookup, no status check, no
+    order_id echo in the response body.
+    """
+    body = render_page(
+        title="Link retired",
+        code="410",
+        headline="This link format has been retired for your privacy.",
+        detail=(
+            "Reading URLs that contained order identifiers have been "
+            "deprecated. Please use the signed link from your checkout "
+            "email — it does not expose personal information in the URL. "
+            "If you can't find it, reach out and we'll re-send."
+        ),
+        actions=[
+            ("Contact support", "mailto:hello@sirr.app", True),
+            ("Return home", "/", False),
+        ],
+    )
+    return HTMLResponse(body, status_code=410)
+
+
+async def _serve_reading_by_id(order_id: str):
+    """Internal: serve legacy reading HTML by order_id. Called only via
+    the token-gated /r/ wrapper — never routed directly."""
     reading_path = READINGS_DIR / f"{order_id}.html"
     if not reading_path.exists():
         order = get_order(order_id)
@@ -823,11 +853,16 @@ async def reading_page(order_id: str):
     return _serve_tier2_html(reading_path, order_id)
 
 
-@app.get("/reading/{order_id}/unified")
-async def reading_unified_page(order_id: str):
-    """Serve the SIRR unified product view for a completed order.
+@app.get("/reading/{order_id}")
+async def reading_page(order_id: str):
+    """DEPRECATED — returns 410 Gone. Use /r/{token} instead."""
+    return _gone_410_response()
 
-    Generated alongside the legacy reading by _generate_unified_view().
+
+async def _serve_reading_unified_by_id(order_id: str):
+    """Internal: serve unified view by order_id. Called only via the
+    token-gated /r/ wrapper — never routed directly.
+
     If the unified file does not exist yet, attempt to generate it on the fly
     from the order's output JSON (lazy fallback for orders completed before
     the unified view was deployed).
@@ -853,13 +888,18 @@ async def reading_unified_page(order_id: str):
     return _serve_tier2_html(unified_path, order_id)
 
 
-@app.get("/reading/{order_id}/merged")
-async def reading_merged_page(order_id: str):
-    """Serve the SIRR merged product view for a completed order.
+@app.get("/reading/{order_id}/unified")
+async def reading_unified_page(order_id: str):
+    """DEPRECATED — returns 410 Gone. Use /r/{token}/unified instead."""
+    return _gone_410_response()
 
-    Additive to legacy + unified — generated alongside them by
-    _generate_merged_view(). Lazy-regenerates from output JSON on demand
-    for orders completed before the merged view was deployed.
+
+async def _serve_reading_merged_by_id(order_id: str):
+    """Internal: serve merged view by order_id. Called only via the
+    token-gated /r/ wrapper — never routed directly.
+
+    Lazy-regenerates from output JSON on demand for orders completed
+    before the merged view was deployed.
     """
     readings_dir = READINGS_DIR
     merged_path = readings_dir / f"{order_id}_merged.html"
@@ -896,6 +936,12 @@ async def reading_merged_page(order_id: str):
         raise HTTPException(404, "Merged view not found")
 
     return _serve_tier2_html(merged_path, order_id)
+
+
+@app.get("/reading/{order_id}/merged")
+async def reading_merged_page(order_id: str):
+    """DEPRECATED — returns 410 Gone. Use /r/{token}/merged instead."""
+    return _gone_410_response()
 
 
 @app.get("/view/demo")
@@ -1108,7 +1154,7 @@ def _generate_unified_view(output_json_path: str, order_id: str) -> Optional[str
         return f"/reading/{order_id}/unified"
     except Exception as e:
         # Never block the main reading flow on unified-view failure.
-        print(f"[unified_view] failed for order {order_id}: {e}", file=sys.stderr)
+        print(f"[unified_view] failed for order {order_id}: {sanitize_exception(e)}", file=sys.stderr)
         return None
 
 
@@ -1146,7 +1192,7 @@ def _generate_merged_view(output_json_path: str, order_id: str) -> Optional[str]
         merged_path.write_text(render_merged_html(output), encoding="utf-8")
         return f"/reading/{order_id}/merged"
     except Exception as e:
-        print(f"[merged_view] failed for order {order_id}: {e}", file=sys.stderr)
+        print(f"[merged_view] failed for order {order_id}: {sanitize_exception(e)}", file=sys.stderr)
         return None
 
 
@@ -1217,7 +1263,7 @@ def _generate_reading_background(order_id: str):
                                   panels_data=panels_data)
             legacy_reading_url = f"/reading/{order_id}"
         except Exception as e:
-            print(f"[legacy_reading] failed for order {order_id}: {e}", file=sys.stderr)
+            print(f"[legacy_reading] failed for order {order_id}: {sanitize_exception(e)}", file=sys.stderr)
             # Continue — unified view is the product
 
         # ── Unified product view (pure Python, no API calls) ──
