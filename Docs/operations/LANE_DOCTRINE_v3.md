@@ -35,7 +35,7 @@ Implements briefs. Commits, pushes, opens PRs, watches CI, watches
 deploys. Does not make architectural choices outside the brief —
 when an unspecified design question arises, asks the orchestrator
 or surfaces explicitly in the implementation report. Drift into
-unilateral design decisions is the v2-named anti-pattern §3.1.
+unilateral design decisions is the anti-pattern in §8 (Claude Code error class #1).
 
 The executor's job is to do exactly what the brief says, surface
 discrepancies between brief and reality before acting on them, and
@@ -46,8 +46,13 @@ high-trust pair of hands.
 
 Adversarial read-only audit. **Mandatory** gate when the orchestrator
 wrote the spec — same-model audit by the spec author is structurally
-insufficient (see anti-pattern §3.3). Routed by Muhab (no automated
-CLI on the executor's machine; see §6).
+insufficient (see §8 Claude (chat) error class #4). Routing in the
+current SIRR setup: Codex CLI is not installed on the executor's
+machine. The orchestrator drafts the audit prompt; Muhab routes it
+to Codex from his side; results are pasted back to the orchestrator.
+This adds latency (~5-15min per round) but preserves the cross-model
+property. Future improvement: install a Codex CLI on the executor's
+machine so the round-trip can be automated (open issue, not blocking).
 
 Codex reads the diff against main, attacks the PR's claims, and
 returns per-claim verdicts (PASS / FINDING / UNCLEAR) with
@@ -60,7 +65,7 @@ escalate (architecturally new — see §7).
 Merge gate. The bright line that no orchestrator and no executor
 crosses without explicit approval. Routes Codex audits, signs off
 on merge, owns post-deploy operational verification. The merge
-gate is sacred — see §5.
+gate is sacred — see §10.
 
 ---
 
@@ -120,7 +125,29 @@ For R1+ PRs, brief includes named sections:
 - **Expected touched files** — pre-flight prediction
 - **Failure modes** — what happens when components fail
 - **Tests** — labeled behavioral vs source-inspection
-- **External commands already verified** — every CLI flag, env var, library API named in brief, with the verification command run (P2D access-log incident is the canonical reason)
+- **External commands already verified** — every CLI flag, env
+  var, library API, or HTTP API named in the brief must be
+  verified before the brief ships. The P2D access-log incident
+  cost ~45min of production downtime because the orchestrator
+  wrote `--access-log false` from training-data memory rather
+  than running `uvicorn --help`. Required verification commands
+  by interface type:
+
+    - **CLI flag**: `<command> --help | grep <flag>` — confirms
+      exact spelling and whether the flag takes a value or is a
+      boolean toggle
+    - **Env var**: `printenv | grep <PREFIX>` on the target
+      runtime context (some env vars are only visible inside the
+      container, not via `railway run` — verify in the right
+      context)
+    - **Library API**: import the library at orchestrator's REPL,
+      confirm the function signature
+    - **HTTP API shape**: pull a real response from the live
+      endpoint (or staging) and read the JSON; do not paraphrase
+      from memory
+
+    The cost of a 30-second `--help` check is always less than
+    the cost of a failed deploy.
 - **Public-copy implications** — does this require updates to privacy.html, terms.html, marketing copy?
 - **What remains false after merge?** — explicit deferral honesty
 
@@ -311,14 +338,14 @@ has the exact text," the paste-block sent to the executor MUST contain
 the verbatim text inline. Forcing the executor to scroll up and
 reconstruct the prescription from earlier orchestrator messages is
 functionally indistinguishable from telling them to derive it
-themselves, which §3.1 (executor design drift) forbids.
+themselves, which §8 (Claude Code error class #1, executor design drift) forbids.
 
 Worked example: P2F-PR3 round 5, 2026-04-25. Orchestrator drafted the
 verbatim text for two doctrine-accuracy fixes in chat, then composed
 an executor instruction that referenced the text by saying
 "orchestrator has the exact text" without inlining it. Executor
 correctly paused and refused to derive doctrine wording independently,
-citing §3.1. Round-trip cost: one extra message exchange. Could have
+citing §8 (Claude Code error class #1). Round-trip cost: one extra message exchange. Could have
 been zero with prescription completeness.
 
 Rule: every executor instruction is self-contained. The executor
@@ -429,6 +456,45 @@ soft-fail), expect 60-90 minutes of recovery + cleanup. Build the
 cycle for the failure case, not the happy path.
 
 **v3 update:** the "orchestrator classifies" step now runs through T5 (Codex veto) and T6 (auto-trigger challenge) before reaching Muhab for approval. Classification is no longer Claude's unilateral call.
+
+---
+
+## §10 — The merge gate
+
+The squash-merge step is sacred. The orchestrator does not run
+`gh pr merge` without explicit approval from Muhab. The executor
+does not run `gh pr merge` without explicit approval from
+orchestrator + Muhab.
+
+Merging without explicit approval is the worst-case anti-pattern
+because:
+
+1. The post-merge state is the source of truth that production
+   deploys from.
+2. Reverts are possible but expensive (~7-15 min downtime in the
+   P2D case, plus operational anxiety).
+3. The act of merging is irreversible in the sense that the
+   commit lives in main forever, even after a revert. The history
+   shows the cost.
+
+If in doubt, ask. Always.
+
+---
+
+## §11 — When to escalate to Muhab
+
+- Codex finds something architecturally new (different class
+  from PR's stated scope)
+- Bright line walk-back would be the second walk-back in same PR
+- A pre-flight verification fails (env var unset, baseline tests
+  not green, etc.)
+- Production deploy returns FAILED
+- Any operation that requires database mutation outside the
+  current PR scope
+- A merge approval is requested but the diff has changed since
+  the last orchestrator read
+- Codex T5 veto on any classification claim (per §3 T5: "veto
+  auto-blocks merge until Muhab explicitly resolves")
 
 ---
 
