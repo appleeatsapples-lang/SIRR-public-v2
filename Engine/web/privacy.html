@@ -106,7 +106,7 @@ footer {
   <ul>
     <li>The engine computes your reading. This happens on our server, not on your browser.</li>
     <li>The reading is stored so you can access it via a private link we deliver to you.</li>
-    <li>Your profile and reading are stored <strong>encrypted at rest</strong>, with a key derived per-record. One record's key cannot decrypt another.</li>
+    <li>Your <strong>reading content</strong> is stored encrypted at rest, with a key derived per-record so one record's key cannot decrypt another. Your <strong>order details</strong> (name, date of birth, birth location, email) are kept on our private server with strict access controls and the same 30-day retention window; per-record encryption for these is part of our next infrastructure update.</li>
     <li>Your data is kept for <strong>30 days</strong>, after which it is automatically purged. The 30 days give you a window to re-download the reading, request a refund, or regenerate it if there was an issue.</li>
   </ul>
 
@@ -144,7 +144,7 @@ footer {
   <p>Regardless of where you live, you have the following rights over your data held by SIRR:</p>
   <ul>
     <li><strong>Right to access</strong> — you receive your reading via private link; you can re-download it any time within the 30-day window.</li>
-    <li><strong>Right to delete</strong> — one-click deletion available at the bottom of your reading page, or by emailing the contact below. Deletion removes your encrypted record immediately and your aggregate contribution within 30 days.</li>
+    <li><strong>Right to delete</strong> — one-click deletion available at the bottom of your reading page, or by emailing the contact below. Deletion immediately removes your encrypted reading files and marks your order record for purge. Some order details persist in our system until the 30-day retention sweep completes the removal; making this immediate is part of our next infrastructure update. Your aggregate contribution is removed within 30 days.</li>
     <li><strong>Right to correction</strong> — if your reading computed on bad input, contact us to regenerate. We don't keep editable records, so correction means regeneration from corrected input.</li>
     <li><strong>Right to portability</strong> — the reading you receive is already yours in downloadable form (HTML / PDF). You own it.</li>
     <li><strong>Right to object</strong> — you may object to our processing at any time by requesting deletion.</li>

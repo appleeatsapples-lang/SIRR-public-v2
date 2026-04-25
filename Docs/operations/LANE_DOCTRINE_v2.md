@@ -295,3 +295,55 @@ The cycle time per round when everything works: ~20-30 minutes.
 When something doesn't work (P2D access-log, P2F-PR2 round 3
 soft-fail), expect 60-90 minutes of recovery + cleanup. Build the
 cycle for the failure case, not the happy path.
+
+---
+
+## §6 — Prescription completeness
+
+When a brief says "per orchestrator's prescription" or "orchestrator
+has the exact text," the paste-block sent to the executor MUST contain
+the verbatim text inline. Forcing the executor to scroll up and
+reconstruct the prescription from earlier orchestrator messages is
+functionally indistinguishable from telling them to derive it
+themselves, which §3.1 (executor design drift) forbids.
+
+Worked example: P2F-PR3 round 5, 2026-04-25. Orchestrator drafted the
+verbatim text for two doctrine-accuracy fixes in chat, then composed
+an executor instruction that referenced the text by saying
+"orchestrator has the exact text" without inlining it. Executor
+correctly paused and refused to derive doctrine wording independently,
+citing §3.1. Round-trip cost: one extra message exchange. Could have
+been zero with prescription completeness.
+
+Rule: every executor instruction is self-contained. The executor
+should not need any context outside the instruction block to
+implement. If the orchestrator catches itself writing
+"per orchestrator's prescription" or similar, that's the signal to
+inline the text instead.
+
+---
+
+## §7 — Orchestrator-direct-edit exception
+
+The orchestrator's default lane is read-and-brief, never write-to-repo.
+There is one exception: explicit Muhab override for late-session,
+bounded, doc-only changes where the round-trip cost exceeds the value
+of preserving lane separation.
+
+Worked example: P2F-PR3 round 5 commit `aaa6204`, 2026-04-25.
+Orchestrator applied two doctrine-accuracy fixes (one bullet
+addition + one comment swap) directly via Desktop Commander
+git/python heredoc edits after Muhab issued "do it yourself now"
+instruction. Conditions met:
+
+- Explicit Muhab override (not orchestrator self-authorization)
+- Bounded scope (two doc edits, no code-behavior change, +6/-1 lines)
+- Late-session expediency (Muhab racing to field; the round-trip
+  cost would have exceeded the value of maintaining lane purity)
+- All other gates honored: pytest 213/213, 3 mandatory verification
+  checks, CI green, Codex round 4 confirmed PASS
+
+Rule: this exception is for Muhab to invoke, not for the orchestrator
+to claim. Orchestrator should always offer to draft the executor
+instruction first; only when Muhab explicitly says "do it yourself"
+does the exception apply. Default remains read-and-brief.
