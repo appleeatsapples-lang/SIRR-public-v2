@@ -62,7 +62,7 @@ gate is sacred — see §5.
 
 ## Worked example: P2F session (2026-04-19 to 2026-04-25)
 
-The session arc was three PRs over six days:
+The session arc grew to four PRs over six days (PR-1 + PR-2 + PR-3 + PR-4):
 
 **P2F-PR1** (2026-04-25T07:16:47+03:00, commit `538ab8d`):
 encrypted tokens + 4 §16.5 surface closures (`/api/order-status/{id}`,
@@ -105,10 +105,20 @@ was 502 for ~45 minutes, reverted via `git revert d3627e4 → 92b95b4`,
 forward-fixed with the correct flag. **The single largest cost in the
 arc was avoidable** — see anti-pattern §3.4 ("spec from memory").
 
-**P2F-PR3** (this PR): operational log scrubs via `hash_oid`,
+**P2F-PR3** (commit `de71a25` squash-merge): operational log scrubs via `hash_oid`,
 `_reading.md` unlink-after-use, status-aware serving (defense-in-depth
 for FIX E cleanup-failure case), stale doctrine cleanup,
 boot-smoke executes `railway.toml` startCommand directly, this doc.
+
+**P2F-PR4** (this PR): customer-facing privacy.html copy accuracy
+(storage claim + deletion claim now match doctrine after PR-3's
+internal precision exposed both as overclaims), plus this doc's §6
+(prescription completeness) and §7 (orchestrator-direct-edit
+exception) appended from this session's lessons. PR-4 itself was a
+worked example: Codex caught a factual self-contradiction in §7
+(round 1) and two stale arc-count references at lines 65 + 108
+(round 2-3) — same convergent doctrine-accuracy class, fixed in
+fold-in commits.
 
 ---
 
