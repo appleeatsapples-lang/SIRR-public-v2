@@ -866,7 +866,11 @@ async def request_deletion(request: Request, req: DeleteRequest):
             except Exception:
                 pass
 
-    # Mark order record as deleted (retain minimal audit row, strip PII payload)
+    # Mark order record as deleted. Nulls four fields only (profile,
+    # email_hash, reading_url, error). Does NOT null name_latin,
+    # name_arabic, dob, birth_time, or birth_location — those PII fields
+    # remain in the row after this update. Closing that gap is tracked
+    # in SIRR_MASTER_REGISTRY.md §16.5 deferred surfaces (P2G arc).
     try:
         update_order(
             order_id,
