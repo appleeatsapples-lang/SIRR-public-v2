@@ -722,7 +722,7 @@ async def reading_merged_by_token(token: str):
 async def reading_status_by_token(token: str):
     """Token-gated polling. §16.5 — replaces /api/order-status/{order_id}."""
     order_id = _resolve_token_or_order_id(token)
-    return await order_status(order_id)
+    return await _serve_order_status_by_id(order_id)
 
 
 # ── §16.6 — Right to deletion ──────────────────────────────────────────────
@@ -1291,8 +1291,9 @@ def _generate_reading_background(order_id: str):
         update_order(order_id, status="failed", error=sanitize_exception(engine_err))
 
 
-@app.get("/api/order-status/{order_id}")
-async def order_status(order_id: str):
+async def _serve_order_status_by_id(order_id: str):
+    """Internal: serve order status by order_id. Called only via the
+    token-gated /api/r/{token}/status wrapper — never routed directly."""
     order = get_order(order_id)
     if not order:
         raise HTTPException(404)
@@ -1300,6 +1301,15 @@ async def order_status(order_id: str):
         "status": order["status"],
         "reading_url": order.get("reading_url"),
     }
+
+
+@app.get("/api/order-status/{order_id}")
+async def order_status_deprecated(order_id: str):
+    """DEPRECATED — returns 410 Gone (P2F §16.5).
+
+    Use /api/r/{token}/status instead, which is token-gated and does not
+    accept a raw order_id in the URL path."""
+    return _gone_410_response()
 
 
 # ── Retention + admin + static pages ──────────────────────────────────────

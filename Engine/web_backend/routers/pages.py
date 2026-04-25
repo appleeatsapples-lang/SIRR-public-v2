@@ -32,8 +32,18 @@ async def terms_page():
 
 
 @router.get("/success")
-async def success_page(order_id: str = None, token: str = None):
-    """Shown after checkout completes. Accepts either token (preferred per
-    §16.5) or order_id (grandfathered). The page itself is static; the
-    JS polls for reading readiness."""
+async def success_page(token: str = None, order_id: str = None):
+    """Shown after checkout completes. Token-only per §16.5 (P2F).
+
+    The order_id query parameter is intentionally still in the function
+    signature so that legacy `?order_id=` URLs are matched by FastAPI's
+    parameter binding (rather than producing a generic 404 / 422), but
+    the legacy branch is no longer served — it returns a 410 Gone page
+    pointing the user at their email link.
+    """
+    if not token and order_id:
+        # Legacy success URL with raw order_id. §16.5 violation. Serve 410.
+        from server import _gone_410_response
+        return _gone_410_response()
+    # Token present (or no params at all — let the JS handle missing-token UX)
     return FileResponse(str(WEB_DIR / "success.html"))
