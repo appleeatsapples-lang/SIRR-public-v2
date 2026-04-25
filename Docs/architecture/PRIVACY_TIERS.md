@@ -40,7 +40,7 @@ Per-record envelope encryption using a key derived from `HKDF(master_secret, sal
 
 **Deletion flow:**
 
-`POST /api/delete` accepts either an encrypted token or `(order_id, email)` for authentication. On success it unlinks Tier 2 files, truncates the order row to audit metadata only, and queues the `order_id` for Tier 3 removal.
+`POST /api/delete` accepts either an encrypted token or `(order_id, email)` for authentication. On success it unlinks Tier 2 reading files (engine output, legacy/unified/merged HTML), marks the order row `status="deleted"` (nulling `profile`, `email_hash`, `reading_url`, and `error`), and queues the `order_id` for Tier 3 removal. Note: as of the P2F closure (2026-04-25), the order row still retains `name_latin`, `name_arabic`, `dob`, `birth_time`, and `birth_location` after this flow. That gap is documented in [`SIRR_MASTER_REGISTRY.md`](../engine/SIRR_MASTER_REGISTRY.md) §16.5 deferred surfaces and is in scope for the P2G arc.
 
 ---
 
