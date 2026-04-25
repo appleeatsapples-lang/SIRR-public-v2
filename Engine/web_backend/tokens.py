@@ -1,65 +1,48 @@
-"""Signed expiring URL tokens for reading access.
+"""Encrypted expiring URL tokens for reading access.
 
-Per §16.5: order IDs must not appear in URLs (they act as capability tokens
-and leak via referrers, browser history, and server logs). Instead, we mint
-a signed token that includes the order ID plus an expiry timestamp, signed
-with a server secret.
+Per §16.5 (broader reading): order IDs must not appear in URLs in any
+recoverable form. Earlier versions of this module used HMAC-signed tokens
+whose payload was base64-encoded plaintext JSON — anyone with the URL could
+decode the order_id without the server's secret. P2F closes that surface
+by encrypting the payload with AES-256-GCM (AEAD), so the URL contains
+only opaque ciphertext to anyone without the server-side master secret.
 
-Token format: base64url(payload) + "." + base64url(signature)
+Token format: base64url(AES-GCM-encrypt(payload))
   payload   : JSON {"oid": "<order_id>", "exp": <unix_timestamp>}
-  signature : HMAC-SHA256(payload, secret)
+  encryption: AES-256-GCM via crypto.encrypt_bytes(context="sirr-token-v1")
+              The context binds the derived key to this specific use case;
+              compromise of token-encryption keys does not affect Tier 2
+              storage keys (which use order_id as context).
 
-Tokens expire after DEFAULT_TTL_SECONDS (30 days), matching the Tier 2
-retention window defined in DECISIONS_LOCKED §16.2.
+Tokens expire after DEFAULT_TTL_SECONDS (30 days), matching Tier 2 retention.
 
 Security properties:
-  - Unforgeable without the secret key
-  - Tamper-evident (any payload change invalidates signature)
-  - Time-bounded (expiry embedded and enforced on verify)
+  - Confidential: payload not readable without master secret
+  - Unforgeable: AEAD auth tag detects any tampering
+  - Time-bounded: expiry embedded and enforced on verify
   - No database lookup required to verify — self-contained
-  - One-time signing cost, O(1) verify
+  - O(1) verify
 
-If SIRR_TOKEN_SECRET env var is unset, a deterministic fallback is derived
-from STRIPE_WEBHOOK_SECRET or a per-process random string (dev only; will
-log a warning so it doesn't silently pass in production).
+Migration note: Tokens minted by the previous (HMAC-signed) format are
+NOT compatible with this version. Existing tokens-in-the-wild become
+invalid on deploy and must be re-minted. Production callers should mint
+fresh tokens via Railway SSH before announcing any URL changes.
 """
 from __future__ import annotations
 
 import base64
-import hashlib
-import hmac
 import json
-import os
-import secrets
-import sys
 import time
 from typing import Optional
+
+from crypto import decrypt_bytes, encrypt_bytes
 
 # 30 days in seconds — matches Tier 2 retention window
 DEFAULT_TTL_SECONDS = 30 * 24 * 60 * 60
 
-# Derive a stable token secret. Priority order:
-#   1. SIRR_TOKEN_SECRET (dedicated)
-#   2. Derived from STRIPE_WEBHOOK_SECRET (reuses existing secret material)
-#   3. Random per-process (dev only — printed warning)
-_SECRET = os.environ.get("SIRR_TOKEN_SECRET")
-if not _SECRET:
-    _derived_from = os.environ.get("STRIPE_WEBHOOK_SECRET")
-    if _derived_from:
-        _SECRET = hashlib.sha256(
-            b"sirr-token-v1|" + _derived_from.encode("utf-8")
-        ).hexdigest()
-    else:
-        _SECRET = secrets.token_hex(32)
-        print(
-            "[WARN] SIRR_TOKEN_SECRET not set and no STRIPE_WEBHOOK_SECRET "
-            "to derive from — using per-process random secret. "
-            "Tokens will NOT survive server restart. Set SIRR_TOKEN_SECRET "
-            "in production.",
-            file=sys.stderr,
-        )
-
-_SECRET_BYTES = _SECRET.encode("utf-8") if isinstance(_SECRET, str) else _SECRET
+# Context string for HKDF key derivation. Must match between mint and verify.
+# Versioned so future changes can rotate without breaking existing tokens.
+_TOKEN_CONTEXT = "sirr-token-v1"
 
 
 def _b64url_encode(data: bytes) -> str:
@@ -73,21 +56,17 @@ def _b64url_decode(s: str) -> bytes:
     return base64.urlsafe_b64decode(s.encode("ascii"))
 
 
-def _sign(payload_bytes: bytes) -> bytes:
-    """HMAC-SHA256 signature of payload using the server secret."""
-    return hmac.new(_SECRET_BYTES, payload_bytes, hashlib.sha256).digest()
-
-
 def mint_token(order_id: str, ttl_seconds: int = DEFAULT_TTL_SECONDS) -> str:
-    """Mint a signed token for the given order_id.
+    """Mint an encrypted token for the given order_id.
 
     Args:
         order_id: The internal order identifier this token grants access to.
         ttl_seconds: Validity window in seconds. Defaults to 30 days.
 
     Returns:
-        A URL-safe string of the form "<payload>.<signature>", suitable for
-        inclusion in URLs or query params. Typical length ~120 chars.
+        A URL-safe string containing only opaque ciphertext. The order_id
+        is not recoverable from this string without the server's master
+        encryption key. Typical length ~150-180 chars.
     """
     if not order_id or not isinstance(order_id, str):
         raise ValueError("order_id must be a non-empty string")
@@ -95,8 +74,8 @@ def mint_token(order_id: str, ttl_seconds: int = DEFAULT_TTL_SECONDS) -> str:
     payload_bytes = json.dumps(
         payload, separators=(",", ":"), sort_keys=True
     ).encode("utf-8")
-    signature = _sign(payload_bytes)
-    return f"{_b64url_encode(payload_bytes)}.{_b64url_encode(signature)}"
+    blob = encrypt_bytes(payload_bytes, context=_TOKEN_CONTEXT)
+    return _b64url_encode(blob)
 
 
 class TokenError(Exception):
@@ -104,11 +83,11 @@ class TokenError(Exception):
 
 
 class TokenMalformed(TokenError):
-    """Token does not parse as <payload>.<signature> or payload isn't JSON."""
+    """Token does not parse as a valid encrypted blob."""
 
 
 class TokenSignatureInvalid(TokenError):
-    """HMAC signature does not match the payload."""
+    """AEAD authentication tag verification failed (tampered or wrong key)."""
 
 
 class TokenExpired(TokenError):
@@ -116,7 +95,7 @@ class TokenExpired(TokenError):
 
 
 def verify_token(token: str) -> str:
-    """Verify a signed token and return the embedded order_id.
+    """Verify an encrypted token and return the embedded order_id.
 
     Raises TokenMalformed, TokenSignatureInvalid, or TokenExpired on failure.
 
@@ -129,26 +108,22 @@ def verify_token(token: str) -> str:
     if not token or not isinstance(token, str):
         raise TokenMalformed("empty or non-string token")
 
-    parts = token.split(".")
-    if len(parts) != 2:
-        raise TokenMalformed("expected <payload>.<signature>")
-
-    payload_b64, sig_b64 = parts
     try:
-        payload_bytes = _b64url_decode(payload_b64)
-        sig = _b64url_decode(sig_b64)
-    except Exception as e:
-        raise TokenMalformed(f"base64 decode failed: {e}")
+        blob = _b64url_decode(token)
+    except Exception:
+        raise TokenMalformed("base64 decode failed")
 
-    # Signature check FIRST (before parsing) to avoid side-channel info leaks
-    expected_sig = _sign(payload_bytes)
-    if not hmac.compare_digest(expected_sig, sig):
-        raise TokenSignatureInvalid("signature mismatch")
+    try:
+        payload_bytes = decrypt_bytes(blob, context=_TOKEN_CONTEXT)
+    except Exception:
+        # crypto.decrypt_bytes raises on AEAD auth failure or malformed blob.
+        # Don't echo the underlying message — could leak crypto details.
+        raise TokenSignatureInvalid("decryption or auth tag check failed")
 
     try:
         payload = json.loads(payload_bytes.decode("utf-8"))
-    except Exception as e:
-        raise TokenMalformed(f"payload JSON parse failed: {e}")
+    except Exception:
+        raise TokenMalformed("payload JSON parse failed")
 
     if not isinstance(payload, dict):
         raise TokenMalformed("payload not a JSON object")

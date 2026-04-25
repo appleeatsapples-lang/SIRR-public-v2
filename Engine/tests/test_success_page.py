@@ -61,39 +61,50 @@ def test_noscript_fallback_present():
     assert "JavaScript is required" in html
 
 
-def test_token_and_order_id_both_supported():
-    """Success page must accept both URL param shapes (§16.5 + legacy)."""
+def test_success_page_is_token_only():
+    """P2F: success page only supports ?token= URLs. The legacy
+    ?order_id= branch and any client-side construction of /reading/{id}
+    or /api/order-status/{id} URLs must be gone."""
     html = _html()
+    # Token branch is the only branch
     assert "params.get('token')" in html
-    assert "params.get('order_id')" in html
-    # Token path redirects to /r/{token}/unified
-    assert "'/r/'" in html
-    # Order_id path redirects to /reading/{id}/unified
-    assert "'/reading/'" in html
+    # Legacy params and URL-construction patterns must NOT appear
+    assert "params.get('order_id')" not in html
+    assert "orderId" not in html
+    # Legacy raw-id URL constructions must NOT appear
+    assert "/api/order-status/" not in html
+    assert "'/reading/'" not in html
 
 
-def test_order_id_never_displayed_as_token():
-    """The display-only block shows order_id but never token material."""
+def test_no_order_id_display_element():
+    """P2F: the order-id-display element is removed; no JS path writes
+    user-visible text containing the order_id."""
     html = _html()
-    # The display block exists
-    assert "order-id-display" in html
-    # Token is never assigned to textContent
+    assert "order-id-display" not in html
+    assert "Order: '" not in html  # the legacy "Order: " prefix
+    # Token must never be assigned to textContent
     assert ".textContent = 'Order: ' + token" not in html
     assert ".textContent = token" not in html
 
 
-def test_default_redirect_lands_on_merged_view():
-    """PR #21: the success-page default redirect must land new customers
-    on /r/{token}/merged (and /reading/{order_id}/merged for legacy
-    order_id URLs). The merged view is the product's primary reader
-    surface; unified stays accessible but isn't the landing page.
-
-    Regression guard: if someone flips this back to /unified by accident,
-    CI catches it here."""
+def test_missing_token_shows_expired_message():
+    """P2F: when no token is in the URL, JS shows an expired-link message
+    and stops polling — replaces the silent-spinner failure mode."""
     html = _html()
-    # New default URL composition
+    assert "if (!token)" in html
+    assert "expired or is invalid" in html
+    # The polling code must throw (not silently continue) when no token
+    assert "throw new Error('no token in success URL')" in html
+
+
+def test_default_redirect_lands_on_merged_view():
+    """PR #21 + P2F: success-page redirect lands on /r/{token}/merged
+    (token-only after P2F). Regression guard: if someone flips this back
+    to /unified or reintroduces the /reading/{id} path, CI catches it."""
+    html = _html()
+    # New default URL composition (token-only)
     assert "'/r/' + encodeURIComponent(token) + '/merged'" in html
-    assert "'/reading/' + encodeURIComponent(orderId) + '/merged'" in html
-    # Old defaults must be gone — no drift back
+    # Old /unified default must be gone
     assert "'/r/' + encodeURIComponent(token) + '/unified'" not in html
-    assert "'/reading/' + encodeURIComponent(orderId) + '/unified'" not in html
+    # P2F: no orderId-based URL anywhere
+    assert "encodeURIComponent(orderId)" not in html

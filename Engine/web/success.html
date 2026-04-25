@@ -35,7 +35,6 @@ body{background:var(--bg);color:var(--text);font-family:'Newsreader','Instrument
   <h1 class="status-title" id="status-title">Your analysis is running</h1>
   <p class="status-sub" id="status-sub">Independent symbolic systems are computing.<br>This may take a minute or two.</p>
   <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
-  <div class="order-id" id="order-id-display"></div>
   <div class="ready-msg" id="ready-msg">
     <p class="status-sub" style="margin-bottom:20px">Your reading is ready.</p>
     <a href="#" class="btn-reading" id="reading-link">Open Your Reading</a>
@@ -48,14 +47,12 @@ body{background:var(--bg);color:var(--text);font-family:'Newsreader','Instrument
   </noscript>
 </div>
 <script>
-// Success page polls for reading-generation completion.
+// Polls /api/r/{token}/status until the reading is ready, then redirects
+// to /r/{token}/merged. The token in the URL is a capability — it grants
+// time-bounded read access to the reading without exposing the order_id.
 //
-// Supports both URL shapes:
-//   ?token=<signed-JWT>   → new (§16.5, privacy-preserving)
-//   ?order_id=<id>        → legacy (grandfathered)
-//
-// Polling has three termination modes:
-//   1. Reading ready  → redirect to /r/{token}/merged (or legacy path)
+// Polling has four termination modes:
+//   1. Reading ready  → redirect to /r/{token}/merged
 //   2. Reading failed → show "something went wrong" message
 //   3. Max polling window reached → show "taking longer than expected"
 //   4. Repeated fetch failures → show "unable to reach server"
@@ -71,21 +68,19 @@ const MAX_CONSECUTIVE_FAILURES = 3;
 
 const params = new URLSearchParams(location.search);
 const token = params.get('token');
-const orderId = params.get('order_id');
 
-const statusUrl = token
-  ? '/api/r/' + encodeURIComponent(token) + '/status'
-  : (orderId ? '/api/order-status/' + encodeURIComponent(orderId) : null);
-
-const readingUrl = token
-  ? '/r/' + encodeURIComponent(token) + '/merged'
-  : (orderId ? '/reading/' + encodeURIComponent(orderId) + '/merged' : null);
-
-// Display-only: show order_id to the user if they arrived via legacy URL.
-// Never show token text — it is a capability, not an identifier.
-if (orderId) {
-  document.getElementById('order-id-display').textContent = 'Order: ' + orderId;
+if (!token) {
+  // No token in URL — the page was reached via a stale or invalid link.
+  // Show the user a clear message and stop polling.
+  document.body.innerHTML = '<div style="padding:2em;font-family:system-ui;text-align:center;">'
+    + '<h2>This success link has expired or is invalid.</h2>'
+    + '<p>Please use the link from your purchase email, or '
+    + '<a href="/">return home</a>.</p></div>';
+  throw new Error('no token in success URL');
 }
+
+const statusUrl = '/api/r/' + encodeURIComponent(token) + '/status';
+const readingUrl = '/r/' + encodeURIComponent(token) + '/merged';
 
 let progress = 5;
 const bar = document.getElementById('progress-bar');

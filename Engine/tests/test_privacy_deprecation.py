@@ -4,7 +4,9 @@ from __future__ import annotations
 import os
 import sys
 
-# Stable secret for token tests — must be set BEFORE server.py imports tokens.py
+# Stable encryption key for token tests — must be set BEFORE server.py imports
+# crypto.py via tokens.py. SIRR_TOKEN_SECRET is now obsolete (P2F) but harmless.
+os.environ["SIRR_ENCRYPTION_KEY"] = "a" * 64
 os.environ["SIRR_TOKEN_SECRET"] = "test-secret-for-unit-tests-only"
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "web_backend"))
@@ -76,3 +78,35 @@ def test_r_valid_token_merged_reaches_handler():
     tok = mint_token("nonexistent-order-for-test")
     r = client.get(f"/r/{tok}/merged")
     assert r.status_code in (200, 404)
+
+
+# ── P2F surface closures ──────────────────────────────────────────────────
+
+
+def test_api_order_status_raw_returns_410():
+    """P2F: /api/order-status/{order_id} is now deprecated. Use the
+    token-gated /api/r/{token}/status instead."""
+    r = client.get("/api/order-status/any-order-id")
+    assert r.status_code == 410
+    # Must NOT echo the order_id back
+    assert "any-order-id" not in r.text
+
+
+def test_success_with_order_id_query_returns_410():
+    """P2F: /success?order_id=... legacy query branch is gone."""
+    r = client.get("/success?order_id=any-order-id")
+    assert r.status_code == 410
+    assert "any-order-id" not in r.text
+
+
+def test_success_with_token_query_returns_200():
+    """P2F: /success?token=... still serves the static page."""
+    tok = mint_token("nonexistent-order-for-test")
+    r = client.get(f"/success?token={tok}")
+    assert r.status_code == 200  # serves success.html
+
+
+def test_success_with_no_params_still_serves_page():
+    """No params at all still returns 200 — JS handles missing-token UX."""
+    r = client.get("/success")
+    assert r.status_code == 200
