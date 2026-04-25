@@ -158,6 +158,47 @@ def test_server_exception_prints_route_through_sanitize_exception():
             )
 
 
+def test_p2e_str_e_sites_sanitized():
+    """P2F-PR2 §E: server.py:611 (/api/analyze 500), :978 (demo render),
+    :1079 (Stripe webhook sig) must not leak str(e). Source-level check."""
+    import re as _re
+    server_path = os.path.join(
+        os.path.dirname(__file__), "..", "web_backend", "server.py"
+    )
+    src = open(server_path).read()
+
+    # /api/analyze must use class-name pattern
+    assert _re.search(
+        r'detail=f"analysis_failed:\{type\(e\)\.__name__\}"', src
+    ), "/api/analyze 500 still leaks str(e) (P2E E.1)"
+    assert "raise HTTPException(500, detail=str(e))" not in src
+
+    # Demo render must use class name
+    assert _re.search(
+        r'Demo render failed:\s*\{type\(e\)\.__name__\}', src
+    ), "demo render still leaks {e} (P2E E.2)"
+    assert 'f"Demo render failed: {e}"' not in src
+
+    # Stripe webhook must return constant
+    assert "raise HTTPException(400, \"invalid_signature\")" in src, \
+        "Stripe webhook still leaks str(e) (P2E E.3)"
+    # And not the old form
+    assert "raise HTTPException(400, str(e))" not in src
+
+
+def test_ls_checkout_error_uses_constant():
+    """P2F-PR2 §F: LS checkout error must surface only a constant to the
+    caller; full provider response stays in stderr only."""
+    server_path = os.path.join(
+        os.path.dirname(__file__), "..", "web_backend", "server.py"
+    )
+    src = open(server_path).read()
+    assert 'raise HTTPException(500, "checkout_provider_error")' in src, \
+        "LS checkout error not using constant (P2F-PR2 §F)"
+    # Old leaky form must be gone
+    assert 'f"Lemon Squeezy error: {resp.text[:200]}"' not in src
+
+
 def test_runner_error_fields_use_type_name_not_str():
     """The 3 error-dict assignments in runner.py (semantic_reading,
     psychological_mirror, psychological_profile) must use

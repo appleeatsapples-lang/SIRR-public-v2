@@ -197,3 +197,86 @@ def test_associated_data_binding():
     except DecryptionError:
         return
     raise AssertionError("associated-data mismatch should have been detected")
+
+
+# ── P2F-PR2 §A: production startup fail-fast ────────────────────────────
+
+
+def _reload_crypto_with_env(env_overrides, env_deletions):
+    """Helper: snapshot env, apply overrides/deletions, reload crypto.
+
+    Returns (reloaded_module_or_None, exception_or_None). Always restores
+    the original env and reloads crypto a second time so subsequent tests
+    see the good module state. The double-reload is the cleanup contract."""
+    import importlib
+    saved = {}
+    for k in list(env_overrides.keys()) + list(env_deletions):
+        saved[k] = os.environ.get(k)
+    try:
+        for k, v in env_overrides.items():
+            os.environ[k] = v
+        for k in env_deletions:
+            os.environ.pop(k, None)
+        try:
+            import crypto as _crypto
+            mod = importlib.reload(_crypto)
+            return (mod, None)
+        except Exception as e:
+            return (None, e)
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        # Restore good crypto for downstream tests.
+        os.environ.setdefault("SIRR_ENCRYPTION_KEY", "a" * 64)
+        try:
+            import crypto as _crypto
+            importlib.reload(_crypto)
+        except Exception:
+            pass
+
+
+def test_production_requires_encryption_key():
+    """Section A: in prod (RAILWAY_DEPLOYMENT_ID set), missing
+    SIRR_ENCRYPTION_KEY must crash module load with a clear RuntimeError."""
+    mod, exc = _reload_crypto_with_env(
+        env_overrides={"RAILWAY_DEPLOYMENT_ID": "test-deployment"},
+        env_deletions=["SIRR_ENCRYPTION_KEY", "STRIPE_WEBHOOK_SECRET"],
+    )
+    assert exc is not None, \
+        "crypto loaded without SIRR_ENCRYPTION_KEY in simulated prod"
+    assert isinstance(exc, RuntimeError), \
+        f"expected RuntimeError, got {type(exc).__name__}: {exc}"
+    assert "SIRR_ENCRYPTION_KEY" in str(exc)
+
+
+def test_local_dev_allows_stripe_fallback():
+    """Section A: outside Railway (no RAILWAY_DEPLOYMENT_ID), the
+    Stripe-derived fallback still works — module loads cleanly."""
+    mod, exc = _reload_crypto_with_env(
+        env_overrides={"STRIPE_WEBHOOK_SECRET": "test-stripe-secret-for-derive"},
+        env_deletions=["RAILWAY_DEPLOYMENT_ID", "SIRR_ENCRYPTION_KEY"],
+    )
+    assert exc is None, f"dev fallback broke: {exc}"
+    assert mod is not None
+
+
+def test_is_production_helper_recognizes_railway_var():
+    """The _is_production() helper must return True iff
+    RAILWAY_DEPLOYMENT_ID is set."""
+    import importlib
+    import crypto as _crypto
+    importlib.reload(_crypto)  # baseline
+    saved = os.environ.get("RAILWAY_DEPLOYMENT_ID")
+    try:
+        os.environ.pop("RAILWAY_DEPLOYMENT_ID", None)
+        assert _crypto._is_production() is False
+        os.environ["RAILWAY_DEPLOYMENT_ID"] = "anything-truthy"
+        assert _crypto._is_production() is True
+    finally:
+        if saved is None:
+            os.environ.pop("RAILWAY_DEPLOYMENT_ID", None)
+        else:
+            os.environ["RAILWAY_DEPLOYMENT_ID"] = saved

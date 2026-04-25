@@ -56,13 +56,30 @@ TAG_LEN = 16  # GCM auth tag (appended automatically)
 _EPHEMERAL_WARNING_PRINTED = False
 
 
+def _is_production() -> bool:
+    """Detect a production (Railway) deployment via auto-set env vars.
+
+    Railway automatically sets several RAILWAY_* env vars on every
+    deployment; their absence indicates local dev or unit-test contexts
+    where fallback secrets are acceptable.
+
+    Reference: docs.railway.app/reference/variables
+    Verified set inside production container (P2F-PR2 brief §A.1):
+      RAILWAY_DEPLOYMENT_ID — present at runtime, NOT in `railway run`
+      local context (chosen because runtime-only is exactly when we
+      need the protection to fire).
+    """
+    return bool(os.environ.get("RAILWAY_DEPLOYMENT_ID"))
+
+
 def _load_master_secret() -> bytes:
     """Resolve the master secret at module import time.
 
     Priority:
       1. SIRR_ENCRYPTION_KEY (hex)
-      2. SHA256-derivation from STRIPE_WEBHOOK_SECRET
-      3. Per-process random + warning
+      2. (production only) hard-fail if neither set
+      3. SHA256-derivation from STRIPE_WEBHOOK_SECRET (dev/test)
+      4. Per-process random + warning (dev only)
     """
     global _EPHEMERAL_WARNING_PRINTED
     hex_key = os.environ.get("SIRR_ENCRYPTION_KEY", "").strip()
@@ -81,6 +98,21 @@ def _load_master_secret() -> bytes:
                 "[WARN] SIRR_ENCRYPTION_KEY is not valid hex. Falling back.",
                 file=sys.stderr,
             )
+
+    # Production hard-fail: explicit secret required (P2F-PR2 §A).
+    # Without an explicit key, tokens and Tier 2 storage would use
+    # ephemeral or Stripe-derived secrets — broken on restart or on
+    # Stripe secret rotation. Crash startup with a clear message
+    # rather than silently degrading privacy guarantees.
+    if _is_production():
+        raise RuntimeError(
+            "SIRR_ENCRYPTION_KEY must be set in production. Detected "
+            "Railway deployment but no encryption key configured. "
+            "Without an explicit key, tokens and Tier 2 storage would "
+            "use ephemeral or derived secrets, breaking on restart or "
+            "Stripe secret rotation. Set SIRR_ENCRYPTION_KEY to a "
+            "64-char hex string in Railway dashboard."
+        )
 
     stripe_secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
     if stripe_secret:

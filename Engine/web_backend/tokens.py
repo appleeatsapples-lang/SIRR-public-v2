@@ -32,10 +32,25 @@ from __future__ import annotations
 
 import base64
 import json
+import os
+import sys
 import time
 from typing import Optional
 
 from crypto import decrypt_bytes, encrypt_bytes
+
+# Deprecation notice: SIRR_TOKEN_SECRET was the HMAC signing secret
+# under the pre-P2F format. After P2F-PR1 (encrypted tokens), token
+# encryption uses SIRR_ENCRYPTION_KEY via crypto.py. The old var is
+# now obsolete; safe to leave set, safe to unset. Surface a one-time
+# INFO log on import so operators notice it can be removed.
+if os.environ.get("SIRR_TOKEN_SECRET"):
+    print(
+        "[INFO] SIRR_TOKEN_SECRET is set but obsolete since P2F-PR1. "
+        "Token encryption now uses SIRR_ENCRYPTION_KEY via crypto.py. "
+        "Safe to leave set; safe to unset. Consider removing from Railway.",
+        file=sys.stderr,
+    )
 
 # 30 days in seconds — matches Tier 2 retention window
 DEFAULT_TTL_SECONDS = 30 * 24 * 60 * 60

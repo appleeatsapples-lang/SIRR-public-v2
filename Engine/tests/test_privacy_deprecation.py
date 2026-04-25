@@ -110,3 +110,44 @@ def test_success_with_no_params_still_serves_page():
     """No params at all still returns 200 — JS handles missing-token UX."""
     r = client.get("/success")
     assert r.status_code == 200
+
+
+# ── P2F-PR2 hardening: response-body cleanups ────────────────────────────
+
+
+def test_status_response_does_not_include_reading_url():
+    """Codex Finding 1: status JSON must not echo raw /reading/ URL.
+
+    Source-level check on _serve_order_status_by_id — it must not
+    include 'reading_url' in its returned dict literal."""
+    import inspect
+    src = inspect.getsource(server._serve_order_status_by_id)
+    assert "reading_url" not in src, \
+        "status helper still references reading_url (Codex Finding 1)"
+    # Also assert the live endpoint shape — non-existent token => 404,
+    # but a real call would return only {status: ...}
+    tok = mint_token("nonexistent-order-for-test")
+    r = client.get(f"/api/r/{tok}/status")
+    assert r.status_code == 404
+
+
+def test_checkout_response_does_not_include_order_id():
+    """Codex Finding 2: checkout response must not echo raw order_id.
+
+    Source-level check: assert no `return {...}` line in create_checkout
+    contains the literal '"order_id": order_id' (which would re-introduce
+    the leak). Outbound payment-provider payloads (LS checkout_data.custom,
+    Stripe metadata) are intentional — those are server-to-server."""
+    import inspect
+    import re
+    src = inspect.getsource(server.create_checkout)
+    # Find `return {...}` lines (one per branch: test, LS, Stripe)
+    return_lines = [
+        line for line in src.splitlines()
+        if line.strip().startswith("return {")
+    ]
+    assert len(return_lines) == 3, \
+        f"expected 3 return-dict branches in create_checkout, got {len(return_lines)}"
+    for line in return_lines:
+        assert '"order_id": order_id' not in line, \
+            f"checkout return still includes order_id (Codex Finding 2): {line!r}"
