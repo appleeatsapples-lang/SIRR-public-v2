@@ -1072,6 +1072,12 @@ def save_dashboard_panels(panels: dict, output_path: str, lang: str = "en") -> s
     base = Path(output_path).stem
     panels_path = Path(output_path).parent / f"{base}_panels_{lang}.json"
     panels_path.write_text(json.dumps(panels, ensure_ascii=False, indent=2), encoding="utf-8")
+    # P2F-PR3 §B exemption: this file is invoked as a standalone CLI
+    # (`python reading_generator.py output.json`) for engine devs; the
+    # path it prints is operator console output, not a server runtime
+    # log ingested by Railway/Datadog. Out-of-scope for the hash_oid
+    # scrub. If/when this surface starts emitting to a real log
+    # aggregator, scrub it then.
     print(f"  Saved panels: {panels_path}")
     return str(panels_path)
 
@@ -1082,6 +1088,7 @@ def save_reading(reading: str, output_path: str, lang: str = "en") -> str:
     base = Path(output_path).stem
     reading_path = Path(output_path).parent / f"{base}_reading_{lang}.md"
     reading_path.write_text(reading, encoding="utf-8")
+    # P2F-PR3 §B exemption: standalone CLI output (see panels above).
     print(f"  Saved: {reading_path}")
     return str(reading_path)
 
@@ -1103,6 +1110,8 @@ def main():
             output_path = arg
 
     if not Path(output_path).exists():
+        # P2F-PR3 §B exemption: CLI usage error message — operator's own
+        # path on their own terminal, not a server runtime log.
         print(f"  Error: {output_path} not found")
         sys.exit(1)
 

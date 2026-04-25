@@ -1172,13 +1172,17 @@ def main():
             html_path = args[idx + 1]
 
     if not Path(output_json).exists():
+        # P2F-PR3 §B exemption: standalone CLI usage error — operator
+        # console output, not a server runtime log ingested by Railway.
         print(f"  Error: {output_json} not found")
         sys.exit(1)
     if not Path(reading_md).exists():
+        # P2F-PR3 §B exemption: standalone CLI usage error.
         print(f"  Error: {reading_md} not found")
         sys.exit(1)
 
     result = generate_html(output_json, reading_md, html_path)
+    # P2F-PR3 §B exemption: CLI completion message; operator console.
     print(f"  Done. Open: {result}")
 
 

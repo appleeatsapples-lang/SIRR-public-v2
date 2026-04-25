@@ -900,7 +900,7 @@ def _gone_410_response() -> HTMLResponse:
     """Styled 410 Gone for deprecated raw-order-id reading paths.
 
     §16.5: order IDs must not appear in URLs. These paths are retained
-    only to return a helpful message pointing the user at their signed
+    only to return a helpful message pointing the user at their secure
     link from checkout email. No order lookup, no status check, no
     order_id echo in the response body.
     """
@@ -910,7 +910,7 @@ def _gone_410_response() -> HTMLResponse:
         headline="This link format has been retired for your privacy.",
         detail=(
             "Reading URLs that contained order identifiers have been "
-            "deprecated. Please use the signed link from your checkout "
+            "deprecated. Please use the secure link from your checkout "
             "email — it does not expose personal information in the URL. "
             "If you can't find it, reach out and we'll re-send."
         ),
@@ -1370,22 +1370,26 @@ def _generate_reading_background(order_id: str):
             readings_dir = READINGS_DIR
             readings_dir.mkdir(parents=True, exist_ok=True)
             html_output_path = str(readings_dir / f"{order_id}.html")
-            generate_html_reading(output_path, reading_md_path, html_output_path,
-                                  panels_data=panels_data)
-
-            # P2F-PR3 §C: _reading.md was always intended to be transient
-            # (see "Save reading md temporarily" comment above) but no
-            # cleanup was wired up. The file contains the full legacy
-            # narrative in plaintext — Tier 2 residue that's not in the
-            # encryption target list and not in the deletion artifact
-            # list. Delete it now that generate_html_reading has consumed it.
+            # P2F-PR3 §C (round-2 enforcement): _reading.md was always
+            # intended to be transient (see "Save reading md temporarily"
+            # comment above) but no cleanup was wired up. The file
+            # contains the full legacy narrative in plaintext — Tier 2
+            # residue that's not in the encryption target list and not
+            # in the deletion artifact list.
+            #
+            # Cleanup is in a `finally` so it runs even if
+            # generate_html_reading raises (which it may: panels payload
+            # parse failure, template error, disk full, etc.). Unlink
+            # itself is best-effort — if THAT fails, retention sweep
+            # eventually catches it.
             try:
-                Path(reading_md_path).unlink(missing_ok=True)
-            except Exception:
-                # Best-effort. If unlink fails, retention sweep will catch
-                # it eventually; better to continue serving than to fail
-                # the request over a transient file's cleanup.
-                pass
+                generate_html_reading(output_path, reading_md_path, html_output_path,
+                                      panels_data=panels_data)
+            finally:
+                try:
+                    Path(reading_md_path).unlink(missing_ok=True)
+                except Exception:
+                    pass
 
             legacy_reading_url = f"/reading/{order_id}"
         except Exception as e:

@@ -443,22 +443,38 @@ def test_reading_generator_drops_subject_from_logs():
 # ── P2F-PR3 §C: _reading.md unlink-after-use ─────────────────────────────
 
 
-def test_reading_md_unlinked_after_use():
-    """P2F-PR3 §C: _reading.md is transient input to generate_html_reading;
-    must be unlinked after that call so Tier 2 residue doesn't persist."""
+def test_reading_md_cleanup_in_finally():
+    """P2F-PR3 §C (round 2): _reading.md cleanup must be in a finally
+    block wrapped around generate_html_reading, so the unlink runs even
+    if generate_html_reading raises. A bare unlink-after-call would
+    leak plaintext on the exceptional path; round-1 was that pattern,
+    Codex round 1 caught it."""
     import inspect
     import server
     src = inspect.getsource(server._generate_reading_background)
-    # Both the write and the unlink should be present
+    # The write and the unlink must both still be present
     assert "_reading.md" in src
     assert "reading_md_path" in src
-    # The unlink must come AFTER generate_html_reading (which consumes it)
-    gen_idx = src.find("generate_html_reading(output_path, reading_md_path")
-    unlink_idx = src.find("Path(reading_md_path).unlink")
-    assert gen_idx >= 0, "generate_html_reading call missing"
-    assert unlink_idx >= 0, "_reading.md unlink missing (P2F-PR3 §C)"
-    assert unlink_idx > gen_idx, \
-        "unlink must come AFTER generate_html_reading consumes the file"
+    # generate_html_reading must be inside a try block whose finally
+    # contains the unlink. We check by ordering: try → generate_html
+    # → finally → unlink, all in the same window.
+    try_idx = src.find("try:\n                generate_html_reading(output_path, reading_md_path")
+    if try_idx < 0:
+        # Allow whitespace flexibility
+        import re as _re
+        m = _re.search(
+            r"try:\s*\n\s+generate_html_reading\(output_path, reading_md_path",
+            src,
+        )
+        try_idx = m.start() if m else -1
+    assert try_idx >= 0, \
+        "generate_html_reading must be wrapped in `try:` (P2F-PR3 §C round 2)"
+    finally_idx = src.find("finally:", try_idx)
+    unlink_idx = src.find("Path(reading_md_path).unlink", try_idx)
+    assert finally_idx > try_idx, \
+        "missing `finally:` after the try wrapping generate_html_reading"
+    assert unlink_idx > finally_idx, \
+        "unlink must be inside the finally block (Codex round 1 finding)"
 
 
 # ── P2F-PR3 §D: status-aware serving ─────────────────────────────────────

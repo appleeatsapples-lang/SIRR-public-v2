@@ -94,19 +94,21 @@ This is liability reduction, not just privacy discipline. If the operator cannot
 
 | Control | Status |
 |---|---|
-| Signed URL tokens for reading access | Shipped (`tokens.py`) |
+| Encrypted URL tokens for reading access (AES-256-GCM AEAD) | Shipped — P2F-PR1 (`tokens.py`) |
 | Age gate 18+ at checkout | Shipped |
 | Privacy Policy + Terms of Service | Shipped (`/privacy`, `/terms`) |
 | Right-to-delete endpoint | Shipped (`POST /api/delete`) |
 | Retention purge job (Tier 2) | Shipped as scaffold, awaits cron wire-up |
 | Tier 3 deletion queue | Stub (drains no-op until Tier 3 store lands) |
-| Log hygiene (no PII in stdout) | Verified |
+| Log hygiene (no PII in stdout, hash_oid for correlation) | Shipped — P2F-PR3 |
 | No third-party client-side analytics | Verified |
-| Per-record Tier 2 encryption at rest | Planned — next 2p iteration |
+| Per-record Tier 2 encryption at rest (output / .html / _unified / _merged) | Shipped — P2F-PR2 |
+| Production startup fail-fast on missing SIRR_ENCRYPTION_KEY | Shipped — P2F-PR2 |
+| `order_store.py` plaintext order rows (name + DOB on disk) | Deferred — P2G |
 | Tier 3 aggregate store | Planned — requires DB migration |
 | Differential-privacy noise calibration | Planned — requires real traffic |
 | Zero-knowledge admin UI | Planned |
 
 ---
 
-*Doc version 1.0 — 2026-04-19 — initial publication alongside first 2p release.*
+*Doc version 1.1 — 2026-04-25 — updated for P2F closure (encrypted tokens, encryption-at-rest enforcement, log hygiene). order_store.py plaintext rows explicitly deferred to P2G.*

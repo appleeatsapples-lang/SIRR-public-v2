@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # SIRR — Railway environment bootstrap
-# Generates SIRR_TOKEN_SECRET, SIRR_ENCRYPTION_KEY, SIRR_INTERNAL_SECRET
-# and pushes them to the currently-linked Railway service.
+# Generates SIRR_ENCRYPTION_KEY, SIRR_INTERNAL_SECRET and pushes them
+# to the currently-linked Railway service.
+#
+# Note: SIRR_TOKEN_SECRET is OBSOLETE since P2F-PR1 (2026-04-19). Tokens
+# now use SIRR_ENCRYPTION_KEY via crypto.py's AEAD path. Existing
+# deployments may keep the old var set (a runtime [INFO] log will
+# recommend removal); new bootstraps no longer generate it.
 #
 # Prerequisite: run `railway login` once (opens browser), then `railway link`
 # into the magnificent-friendship / web service.
@@ -31,8 +36,7 @@ fi
 
 gen() { python3 -c "import secrets; print(secrets.token_hex(32))"; }
 
-echo "generating three 32-byte hex secrets"
-T="$(gen)"
+echo "generating two 32-byte hex secrets"
 E="$(gen)"
 I="$(gen)"
 
@@ -66,10 +70,9 @@ if [[ $DRY_RUN -eq 1 ]]; then
 fi
 
 echo ""
-echo "all three env vars set. Railway will redeploy automatically."
+echo "both env vars set. Railway will redeploy automatically."
 echo ""
 echo "Save these offline (1Password, whatever):"
-echo "  SIRR_TOKEN_SECRET    = $T"
 echo "  SIRR_ENCRYPTION_KEY  = $E"
 echo "  SIRR_INTERNAL_SECRET = $I"
 echo ""

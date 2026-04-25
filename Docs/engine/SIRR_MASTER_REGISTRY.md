@@ -6,7 +6,15 @@ This file is the source-of-truth summary for SIRR's privacy doctrine state, the 
 
 ## §16.5 doctrine state — post-P2F closure (2026-04-25)
 
-**Headline:** name+DOB does not appear in any URL, response body, on-disk plaintext, or operational log surface in any recoverable form. Doctrine is closed end-to-end at the runtime layer.
+**Headline (honest scope):** name+DOB does not appear in any URL, response body, server runtime log line, or `_reading.md` plaintext intermediate. Tier 2 reading artifacts (output JSON, legacy `.html`, `_unified.html`, `_merged.html`) are AES-256-GCM encrypted at rest with atomic plaintext cleanup on encryption failure. Token URLs are opaque ciphertext.
+
+**Two known plaintext surfaces remain — explicitly deferred to P2G (not closed by P2F):**
+
+- `Engine/web_backend/order_store.py:36` — `create_order()` writes the order row (containing `name_latin`, `name_arabic`, `dob`, `birth_time`, `birth_location`) as plaintext JSON to `ORDERS_DIR/<order_id>.json`. This is the source-of-record for the order metadata; the encryption work in P2F-PR2 only covered the reading artifacts (`_output.json`, `.html`, `_unified.html`, `_merged.html`), not this row.
+- `Engine/web_backend/order_store.py:52` — `get_order()` reads the same plaintext row at request time. The /api/r/{token}/status path therefore touches a plaintext disk file on every poll.
+- Related deletion gap at `Engine/web_backend/server.py:869`: `POST /api/delete` truncates the order row's PII fields via `update_order(profile=None, email_hash=None, ...)`, but the original plaintext bytes may persist in filesystem unallocated space until overwritten — and the row file itself is NOT unlinked, only re-written with PII fields nulled.
+
+The P2G arc will introduce per-order encryption for the `order_store` rows (likely re-using `crypto.encrypt_bytes` with `context=order_id`, mirroring the Tier 2 pattern). Until then, the runtime threat model assumes filesystem confidentiality of `/data/orders/`.
 
 ### Closures by phase
 
@@ -49,11 +57,18 @@ This file is the source-of-truth summary for SIRR's privacy doctrine state, the 
 - `LANE_DOCTRINE_v2.md` codifies the multi-model lessons from this arc
 - `Docs/audits/AUDIT_2026-04-24.md` superseded header
 
-### Known deferred items (not closed by P2F)
+### Known plaintext surfaces NOT closed by P2F (deferred to P2G)
 
-- **Stripe / LS payment metadata still carries raw `order_id`** in their internal dashboards (third-party log surface, not our control). Documented in commit messages; not a runtime leak.
+- **`Engine/web_backend/order_store.py:36`** (`create_order`) — order rows containing `name_latin` + `name_arabic` + `dob` + `birth_time` + `birth_location` are written as plaintext JSON to `ORDERS_DIR/<order_id>.json`. P2F-PR2's encryption-at-rest covered the reading artifacts but not the order-row file.
+- **`Engine/web_backend/order_store.py:52`** (`get_order`) — reads the same plaintext row at request time. Every `/api/r/{token}/status` poll touches this file.
+- **`Engine/web_backend/server.py:869`** (deletion gap) — `POST /api/delete` truncates the order row's PII fields via `update_order(profile=None, ...)`, but the file itself is NOT unlinked, only re-written with PII fields nulled. Filesystem unallocated-space carve-back is not performed; on a shared volume this leaves the original plaintext bytes recoverable until overwritten.
+- **`hash_oid` truncation length** (`Engine/web_backend/sanitize.py`) — 12-char SHA-256 prefix gives ~48 bits of preimage resistance. Acceptable for the current threat model (operational log correlation, single-tenant log surface) but documented here for revisitation when the customer base grows past ~10⁵ active orders or the log surface gets multi-tenant.
+
+### Other known deferred items
+
+- **Stripe / LS payment metadata still carries raw `order_id`** in their internal dashboards (third-party log surface, not our control). Documented in commit messages; not a runtime leak on our side.
 - **Migration race window during PR-1 deploy**: pre-existing HMAC tokens became invalid the moment the new code went live. Mitigated by minting fresh tokens for the active customer (Muhab's test order) immediately after deploy. Not a concern for new orders post-deploy.
-- **`SIRR_TOKEN_SECRET` env var on Railway**: still set, now obsolete since P2F-PR1. Harmless; deprecation INFO log surfaces on every container restart. Will be removed at Muhab's discretion once the recommendation has been seen enough times.
+- **`SIRR_TOKEN_SECRET` env var on Railway**: still set, now obsolete since P2F-PR1. Harmless; deprecation INFO log surfaces on every container restart. Bootstrap script no longer generates it (P2F-PR3 round 2). Will be removed from Railway at Muhab's discretion once the recommendation has been seen enough times.
 
 ### Doctrine sources of truth
 

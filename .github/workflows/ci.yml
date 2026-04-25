@@ -191,7 +191,7 @@ jobs:
           test "$(curl -so /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/internal/metrics -H 'X-Internal-Secret: ci-smoke-secret')" = "200"
 
           # P2D — /reading/{order_id} is now permanently deprecated; serves
-          # a styled 410 Gone page that points users at their signed link.
+          # a styled 410 Gone page that points users at their secure link.
           echo "→ GET /reading/nonexistent (browser accept) → 410 styled HTML"
           status=$(curl -so /dev/null -w '%{http_code}' http://127.0.0.1:8000/reading/nonexistent -H 'Accept: text/html')
           test "$status" = "410" || (echo "✗ expected 410 Gone, got $status"; exit 1)
