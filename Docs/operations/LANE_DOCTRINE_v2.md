@@ -341,9 +341,24 @@ instruction. Conditions met:
 - Late-session expediency (Muhab racing to field; the round-trip
   cost would have exceeded the value of maintaining lane purity)
 - All other gates honored: pytest 213/213, 3 mandatory verification
-  checks, CI green, Codex round 4 confirmed PASS
+  checks, CI green. The direct-edit was applied as round 5 of PR-3.
+  Codex round 4 (auditing the post-edit branch) returned PASS on
+  the four PR-3-internal claims and surfaced one new residual
+  (privacy.html customer-copy overclaim) which was routed to PR-4
+  per the round-3 bright line, not folded back into PR-3. The
+  direct-edit and the residual are independent: the edit closed
+  PR-3's internal doctrine, the residual closed customer-facing
+  doctrine, and both gates held.
 
 Rule: this exception is for Muhab to invoke, not for the orchestrator
 to claim. Orchestrator should always offer to draft the executor
 instruction first; only when Muhab explicitly says "do it yourself"
 does the exception apply. Default remains read-and-brief.
+
+**Worked example addendum, 2026-04-25 (PR-4 round 1):** orchestrator
+caught itself about to direct-edit a §7-class fix to this very
+document without explicit Muhab override. Reverted before any
+commit, routed the fix through the executor (this paste). The
+near-violation reinforces §7's narrow scope: "explicit Muhab
+override" means a paste like "do it yourself now," not orchestrator
+inferring expediency from session context. When in doubt, route.
