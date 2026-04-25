@@ -8,11 +8,11 @@ This file is the source-of-truth summary for SIRR's privacy doctrine state, the 
 
 **Headline (honest scope):** name+DOB does not appear in any URL, response body, server runtime log line, or `_reading.md` plaintext intermediate. Tier 2 reading artifacts (output JSON, legacy `.html`, `_unified.html`, `_merged.html`) are AES-256-GCM encrypted at rest with atomic plaintext cleanup on encryption failure. Token URLs are opaque ciphertext.
 
-**Two known plaintext surfaces remain — explicitly deferred to P2G (not closed by P2F):**
+**Four known gaps remain — explicitly deferred to P2G (not closed by P2F):**
 
 - `Engine/web_backend/order_store.py:36` — `create_order()` writes the order row (containing `name_latin`, `name_arabic`, `dob`, `birth_time`, `birth_location`) as plaintext JSON to `ORDERS_DIR/<order_id>.json`. This is the source-of-record for the order metadata; the encryption work in P2F-PR2 only covered the reading artifacts (`_output.json`, `.html`, `_unified.html`, `_merged.html`), not this row.
 - `Engine/web_backend/order_store.py:52` — `get_order()` reads the same plaintext row at request time. The /api/r/{token}/status path therefore touches a plaintext disk file on every poll.
-- Related deletion gap at `Engine/web_backend/server.py:869`: `POST /api/delete` truncates the order row's PII fields via `update_order(profile=None, email_hash=None, ...)`, but the original plaintext bytes may persist in filesystem unallocated space until overwritten — and the row file itself is NOT unlinked, only re-written with PII fields nulled.
+- Related deletion gap at `Engine/web_backend/server.py:869`: `POST /api/delete` calls `update_order(status="deleted", profile=None, email_hash=None, reading_url=None, error=None)` — nulls four fields but does NOT touch `name_latin`, `name_arabic`, `dob`, `birth_time`, or `birth_location`. The order row file is also not unlinked, only rewritten with the four nulled fields. P2G must extend deletion to null all PII fields (or unlink the row entirely).
 
 The P2G arc will introduce per-order encryption for the `order_store` rows (likely re-using `crypto.encrypt_bytes` with `context=order_id`, mirroring the Tier 2 pattern). Until then, the runtime threat model assumes filesystem confidentiality of `/data/orders/`.
 
