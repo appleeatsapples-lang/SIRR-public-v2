@@ -409,10 +409,17 @@ def _encrypt_tier2_outputs(order_id: str) -> int:
     Failure is FATAL — we must never leave plaintext on disk when
     encryption was expected (Codex Item 10). On any per-file failure:
       1. Log the exception class name (no message — could leak paths).
-      2. Mark the order status=encryption_failed so the success page
-         polling does not advertise "ready" pointing at unsealed data.
-      3. Re-raise so the outer caller (_generate_reading_background)
-         can take its own except-block path (status=failed).
+      2. Downgrade the order from "ready" to status="failed" with an
+         "encryption_failed:<ExcClass>" error prefix. The success page
+         polls for status in {"ready","failed"}; using "failed" makes
+         the customer see the failure UI instead of polling forever.
+      3. Re-raise so the outer caller can also log and stop further
+         post-encryption work.
+
+    Targets list (P2F-PR2 FIX B): explicitly includes _merged.html,
+    which is the canonical post-checkout view served at /r/{token}/merged.
+    Without this entry, the merged view (which contains the actual
+    customer reading) would be left unencrypted on disk.
     """
     readings_dir = READINGS_DIR
     orders_dir = ORDERS_DIR
@@ -420,6 +427,7 @@ def _encrypt_tier2_outputs(order_id: str) -> int:
         orders_dir / f"{order_id}_output.json",
         readings_dir / f"{order_id}.html",
         readings_dir / f"{order_id}_unified.html",
+        readings_dir / f"{order_id}_merged.html",
     ]
     encrypted = 0
     for t in targets:
@@ -437,10 +445,17 @@ def _encrypt_tier2_outputs(order_id: str) -> int:
                 f"{type(enc_err).__name__}",
                 file=sys.stderr,
             )
-            # Mark order failed so the customer's success page does not
-            # advertise "ready" while the data on disk is still plaintext.
+            # Mark order "failed" (not a custom string) so success.html's
+            # status===failed branch fires and the customer sees the
+            # error UI instead of polling forever. Error field carries
+            # the encryption_failed prefix + exception class name for
+            # ops visibility — message is omitted to avoid path/key leaks.
             try:
-                update_order(order_id, status="encryption_failed")
+                update_order(
+                    order_id,
+                    status="failed",
+                    error="encryption_failed:" + type(enc_err).__name__,
+                )
             except Exception:
                 # Order-store failure on top of encryption failure: log
                 # and let the outer raise propagate the original error.

@@ -186,6 +186,52 @@ def test_p2e_str_e_sites_sanitized():
     assert "raise HTTPException(400, str(e))" not in src
 
 
+def test_encryption_failure_marks_order_failed_with_prefix():
+    """P2F-PR2 FIX A: when Tier 2 encryption fails, _encrypt_tier2_outputs
+    must downgrade the order to status='failed' (not a custom string like
+    'encryption_failed') so success.html's failed-status branch fires.
+    The error field carries an 'encryption_failed:' prefix so ops can
+    distinguish encryption failures from engine failures."""
+    import inspect
+    from server import _encrypt_tier2_outputs
+    src = inspect.getsource(_encrypt_tier2_outputs)
+    # Must use status="failed" (the string success.html recognizes)
+    assert 'status="failed"' in src, \
+        "encryption failure must set status='failed' (FIX A)"
+    # Must NOT use the rejected custom status string
+    assert 'status="encryption_failed"' not in src, \
+        "encryption failure still uses custom status string success.html ignores"
+    # Must carry the error prefix for operational distinction
+    assert '"encryption_failed:"' in src, \
+        "error field missing encryption_failed: prefix (FIX A)"
+    # And include the exception class name (not the full message)
+    assert 'type(enc_err).__name__' in src, \
+        "error field must use exception class name only (no str(e) leaks)"
+
+
+def test_encryption_targets_include_merged_html():
+    """P2F-PR2 FIX B: _encrypt_tier2_outputs must encrypt the canonical
+    customer-facing merged view (_merged.html). Without this, the
+    primary post-checkout reading surface lives unencrypted on disk."""
+    import inspect
+    from server import _encrypt_tier2_outputs
+    src = inspect.getsource(_encrypt_tier2_outputs)
+    # All four expected targets — by suffix-string presence in the source
+    expected_suffixes = [
+        '_output.json',
+        '.html',
+        '_unified.html',
+        '_merged.html',
+    ]
+    for suffix in expected_suffixes:
+        assert suffix in src, \
+            f"_encrypt_tier2_outputs targets list missing {suffix} (FIX B)"
+    # Stronger assertion: the merged.html line must explicitly appear in
+    # the targets list literal (not just elsewhere in the function body)
+    assert 'f"{order_id}_merged.html"' in src, \
+        "_merged.html target literal not in targets list (FIX B)"
+
+
 def test_ls_checkout_error_uses_constant():
     """P2F-PR2 §F: LS checkout error must surface only a constant to the
     caller; full provider response stays in stderr only."""
