@@ -76,5 +76,5 @@ The P2G arc will introduce per-order encryption for the `order_store` rows (like
 - This file (registry): claims summary, deferral list
 - `Docs/architecture/PRIVACY_TIERS.md`: tier definitions and rationale
 - `Docs/operations/LANE_DOCTRINE_v3.md`: how multi-model work is gated and verified (supersedes v2; v2 retained as historical context)
-- Brief archive: `SIRR_PRIVATE/Orchestration/Briefs/P2{D,F}_*.md`
+- Brief archive: `MKB/SIRR/PRIVATE/Orchestration/Briefs/P2{D,F}_*.md`
 - Audit history (superseded): `Docs/audits/AUDIT_2026-04-24.md`
