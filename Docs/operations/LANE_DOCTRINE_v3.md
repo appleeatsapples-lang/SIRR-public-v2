@@ -86,27 +86,29 @@ Claude (chat) proposes the label. Codex can veto if the label undersells risk. M
 
 If a PR touches any of these paths, it CANNOT be R0 unless Codex sees the label or Muhab explicitly waives review. The minimum label becomes R1; if the path is on the doctrine list (`Docs/architecture/PRIVACY_TIERS.md`, `Docs/engine/SIRR_MASTER_REGISTRY.md`, `Docs/operations/LANE_DOCTRINE_v*.md`, `Engine/web/*.html`), minimum becomes R2.
 
-**Backend runtime:**
+**Backend runtime (→ R1 min):**
 - `Engine/web_backend/**/*.py` (all backend Python: tokens, crypto, sanitize, retention, order_store, server, auth, middleware, errors, metrics, scheduler, paths, routers/*)
 - `Engine/{runner,reading_generator,html_reading,unified_view,merged_view}.py` (engine pipeline)
 
-**User-facing surfaces:**
-- `Engine/web/*.html` (any user- or admin-facing page; privacy, terms, success, index, admin, _error, email_template all covered)
+**User-facing surfaces (→ R2 min):**
+- `Engine/web/*.html` (any user- or admin-facing page; privacy, terms, success, index, admin, _error, email_template all covered) — customer-facing copy is treated as doctrine because privacy and legal claims are doctrine
 
-**Doctrine:**
+**Doctrine (→ R2 min):**
 - `Docs/architecture/PRIVACY_TIERS.md`
 - `Docs/engine/SIRR_MASTER_REGISTRY.md`
 - `Docs/operations/LANE_DOCTRINE_v*.md`
-- `Docs/deployment/**`
 
-**Tests:**
+**Tests (→ R1 min):**
 - `Engine/tests/**` (any test under the test tree)
 
-**Build / CI / runtime config:**
+**Build / CI / runtime / deployment config (→ R1 min):**
 - `.github/workflows/ci.yml`
 - `Procfile`, `railway.toml`
 - `Engine/pyproject.toml`, `requirements.txt`, `runtime.txt`
 - `Tools/scripts/**` (bootstrap, deployment, environment scripts)
+- `Docs/deployment/**`
+
+**Deployment-doc R2 promotion clause:** Edits to `Docs/deployment/**` that touch retention, deletion, privacy, or security procedures promote to R2 (errors carry customer-facing implications via the 30-day Tier 2 retention obligation and reading-persistence guarantees). Other deployment-doc edits (build scripts, environment notes) remain R1. Authors who are unsure should default to R2.
 
 Path-trigger rule overrides Claude's risk label; cannot be argued away.
 
@@ -495,6 +497,35 @@ If in doubt, ask. Always.
   the last orchestrator read
 - Codex T5 veto on any classification claim (per §3 T5: "veto
   auto-blocks merge until Muhab explicitly resolves")
+
+---
+
+## §12 — Doctrine doc handling
+
+Doctrine docs (paths matching `Docs/architecture/PRIVACY_TIERS.md`, `Docs/engine/SIRR_MASTER_REGISTRY.md`, `Docs/operations/LANE_DOCTRINE_v*.md`) MUST NOT be opened in editors that perform auto-format-on-save, auto-save, or any silent buffer-to-disk behavior. The structural risk is that these editors quietly mutate or truncate the file while the orchestrator is reading or drafting against it, producing a brief aligned with corrupted state rather than the committed baseline.
+
+**Prohibited:** Xcode (treats `.md` as code, applies destructive auto-format and silent saves; documented to truncate doctrine docs by ~90% over short windows). Any IDE with `editor.formatOnSave: true` for markdown unless explicitly disabled at the file or workspace level.
+
+**Allowed:** terminal viewers (`less`, `cat`), terminal editors with no auto-format (`vim`, `nano`), VSCode/Cursor only when ALL of `editor.formatOnSave: false` for markdown, `files.autoSave: "off"`, and any markdown-formatter extension is either disabled or scoped to exclude doctrine docs. Other IDEs are allowed only after equivalent verification that no auto-format, auto-save, or silent buffer-to-disk behavior is enabled. Plain text editors in plain-text mode (TextEdit → Format → Make Plain Text). Reading via Desktop Commander or `git show HEAD:<path>` is always safe — read-only, bypasses any editor buffer state.
+
+**Recovery procedure when corruption is detected:**
+
+1. STOP all work touching the affected doc.
+2. Verify damage: `git status` (file marked modified), `git diff HEAD -- <path>`, `wc -l <path>` vs `git show HEAD:<path> | wc -l` (significant line-count drop indicates truncation).
+3. Identify and close the editor session holding the file. `lsof <path>` shows current handles. Quit the editor entirely if uncertain which tab is the offender.
+4. Restore from HEAD: `git checkout HEAD -- <path>`. Verify line count post-restore matches HEAD.
+5. Confirm `git status` clean. Resume work from the restored baseline.
+
+**Reported incident (session-recorded, no preserved tracked artifact):** 2026-04-25 PR-5 incident. Xcode held `LANE_DOCTRINE_v3.md` and `SIRR_MASTER_REGISTRY.md` in editor tabs and silently truncated v3.md from 537 lines to 53 lines over a ~30-minute window during which the orchestrator (Claude in chat) drafted PR-5's brief against the corrupted state. Two of the four "issues" identified in that draft (markdown formatting bugs at lines 104 and 113 in the dirty file) were Xcode artifacts, not real doctrine bugs in HEAD. Claude Code rejected the brief at pre-flight via the dirty-tree stop condition; orchestrator verified against HEAD via `git show HEAD:`; files restored via `git checkout HEAD --`; brief revised against the clean baseline; PR-5 re-routed. Cost: one full brief-revision cycle (~30 min) plus formatter-source investigation. Future cost prevented by this section.
+
+*Evidentiary note: this account is reconstructed from session memory. The dirty working-tree state was discarded via `git checkout HEAD --` during recovery, and the original (corrupted-state) brief was overwritten in place by the revised brief at `SIRR_PRIVATE/Orchestration/Briefs/PR5_LINE119_CATEGORIZATION_BRIEF.md`, so neither artifact is preserved in tracked history. Future incidents of this class should preserve evidence before recovery: copy the dirty file to `SIRR_PRIVATE/Incidents/<YYYY-MM-DD>_<short-name>/` (or `git stash` if the working tree state is recoverable that way) before running `git checkout HEAD --`. This makes the next worked example independently verifiable.*
+
+**Pre-flight check (now mandatory for any doctrine-doc PR):**
+
+```bash
+lsof Docs/operations/LANE_DOCTRINE_v*.md Docs/architecture/PRIVACY_TIERS.md Docs/engine/SIRR_MASTER_REGISTRY.md 2>/dev/null | grep -vE '^(Claude|COMMAND)'
+# Expect: empty output. Any non-Claude reader (especially Xcode) is a STOP condition.
+```
 
 ---
 
