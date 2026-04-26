@@ -55,8 +55,8 @@ def test_november_eleventh_preserves_master_11():
 
 
 def test_normal_dob_unchanged():
-    """DOB 1996-09-23 (Muhab): no master numbers in the natural path.
-    Behavior should be identical before/after the fix — sanity check."""
+    """Sanity check: a DOB that does not produce master numbers in the natural path.
+    Behavior should be identical before/after the fix."""
     import cheiro_extensions
     profile = _make_profile(1996, 9, 23)
     constants = {"version": "test"}
